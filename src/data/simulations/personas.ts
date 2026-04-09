@@ -1,0 +1,48 @@
+import { Persona } from "./types";
+
+export const PERSONAS: Persona[] = [
+  {
+    id: "favorite",
+    name: "The Favorite",
+    tagline: "You picked the best. Now prove it.",
+    description: "Argentina allegiance. France & Brazil drafted. Mbappé and Vinícius Jr. on your squad. Heavy favorites — but the pressure is real.",
+    icon: "👑",
+    countries: ["AR", "FR", "BR"],
+    allegiance: "AR",
+    players: ["mbappe", "vinicius", "messi", "rodri", "alisson"],
+    color: "var(--gold)",
+  },
+  {
+    id: "underdog",
+    name: "The Underdog",
+    tagline: "Chaos is a ladder.",
+    description: "Japan allegiance. South Korea & Morocco drafted. Son and Mitoma are your weapons. You need upsets — and contrarian picks are your superpower.",
+    icon: "🐺",
+    countries: ["JP", "KR", "MA"],
+    allegiance: "JP",
+    players: ["son", "mitoma", "hakimi", "kubo", "en-nesyri"],
+    color: "var(--electric)",
+  },
+  {
+    id: "balanced",
+    name: "The Balanced",
+    tagline: "Steady hands win tournaments.",
+    description: "England allegiance. Germany & Colombia drafted. Bellingham and De Bruyne run your midfield. Consistent, smart, no panic.",
+    icon: "⚖️",
+    countries: ["GB-ENG", "DE", "CO"],
+    allegiance: "GB-ENG",
+    players: ["bellingham", "de-bruyne", "kane", "l-diaz", "musiala"],
+    color: "var(--emerald)",
+  },
+  {
+    id: "wildcard",
+    name: "The Wildcard",
+    tagline: "Home advantage. Home crowd. Home run.",
+    description: "USA allegiance. Spain & Senegal drafted. Pulisic and Yamal lead the attack. Betting on the host nation magic.",
+    icon: "🎰",
+    countries: ["US", "ES", "SN"],
+    allegiance: "US",
+    players: ["pulisic", "yamal", "pedri", "mane", "weah"],
+    color: "var(--crimson)",
+  },
+];

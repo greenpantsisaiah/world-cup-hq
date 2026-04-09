@@ -1,0 +1,185 @@
+import { Timeline } from "./types";
+
+export const ARGENTINA_TIMELINE: Timeline = {
+  id: "argentina-again",
+  name: "Argentina Again",
+  description: "Messi's farewell miracle. African teams surge. Europe crumbles.",
+  icon: "🇦🇷",
+  tournament: "2026",
+  tone: "dramatic",
+  finalMessage: "Argentina wins back-to-back World Cups. Messi retires as the undisputed GOAT.",
+  days: [
+    // ─── Day 1: Opening Day ───────────────────────
+    {
+      day: 1,
+      title: "Opening Day",
+      matches: [
+        { home: "US", away: "MA", homeScore: 2, awayScore: 1, stage: "Group A", scorers: ["pulisic", "weah", "hakimi"] },
+        { home: "FR", away: "DK", homeScore: 3, awayScore: 0, stage: "Group B", scorers: ["mbappe", "mbappe", "griezmann"], motm: "mbappe" },
+      ],
+      commentary: [
+        "Mbappé hat trick! Your boy just announced himself. +18 points on Day 1. This is why you pick favorites.",
+        "Morocco lost but Hakimi scored. Silver lining. The US win hurts though — that's Wildcard territory.",
+        "Solid start. No drama, no panic. Exactly how you like it.",
+        "PULISIC AND WEAH BOTH SCORED. The host nation magic is REAL. +16 for you!",
+      ],
+      h2hResult: { opponent: "Dave", yourScore: 12, theirScore: 4 },
+      scoreDeltas: { favorite: 24, underdog: 5, balanced: 3, wildcard: 16 },
+      leaderboard: [
+        { rank: 1, name: "You", score: 24, isYou: true, delta: 0 },
+        { rank: 2, name: "Sarah", score: 22, isYou: false, delta: 0 },
+        { rank: 3, name: "Phil", score: 19, isYou: false, delta: 0 },
+        { rank: 4, name: "Marcus", score: 16, isYou: false, delta: 0 },
+        { rank: 5, name: "Lisa", score: 14, isYou: false, delta: 0 },
+        { rank: 6, name: "Dave", score: 11, isYou: false, delta: 0 },
+        { rank: 7, name: "Emma", score: 9, isYou: false, delta: 0 },
+        { rank: 8, name: "Jake", score: 8, isYou: false, delta: 0 },
+      ],
+    },
+    // ─── Day 3: Group Stage Drama ─────────────────
+    {
+      day: 3,
+      title: "Upset Alert",
+      matches: [
+        { home: "AR", away: "EG", homeScore: 1, awayScore: 1, stage: "Group C", scorers: ["messi", "salah"], motm: "salah" },
+        { home: "JP", away: "AU", homeScore: 3, awayScore: 1, stage: "Group D", scorers: ["mitoma", "mitoma", "kubo"], motm: "mitoma" },
+        { home: "DE", away: "KR", homeScore: 1, awayScore: 2, stage: "Group F", scorers: ["musiala", "son", "son"], motm: "son" },
+      ],
+      commentary: [
+        "Argentina drew with Egypt. Messi scored but so did Salah. Not the start you wanted for your allegiance. Mbappé is carrying you.",
+        "MITOMA DOUBLE! KUBO GOAL! SON DOUBLE AGAINST GERMANY! This is YOUR day. The underdogs are EATING. +28!",
+        "Musiala scored but Germany LOST to South Korea. Son's brace is beautiful chaos. Your balanced approach absorbs it.",
+        "Japan and South Korea both won. The Asian teams are surging. Your Senegal plays tomorrow though.",
+      ],
+      hotTakeUpdate: { text: "\"Japan will beat a European team in groups\" — Tom's take is looking PROPHETIC", status: "trending" },
+      scoreDeltas: { favorite: 11, underdog: 28, balanced: 8, wildcard: 4 },
+      leaderboard: [
+        { rank: 1, name: "You", score: 35, isYou: true, delta: 0 },
+        { rank: 2, name: "Tom", score: 41, isYou: false, delta: 6 },
+        { rank: 3, name: "Sarah", score: 38, isYou: false, delta: -1 },
+        { rank: 4, name: "Chris", score: 34, isYou: false, delta: 5 },
+        { rank: 5, name: "Phil", score: 29, isYou: false, delta: -2 },
+        { rank: 6, name: "Marcus", score: 27, isYou: false, delta: -2 },
+        { rank: 7, name: "Lisa", score: 24, isYou: false, delta: -2 },
+        { rank: 8, name: "Dave", score: 15, isYou: false, delta: -2 },
+      ],
+    },
+    // ─── Day 6: Group Stage Finale ────────────────
+    {
+      day: 6,
+      title: "Group Finale Chaos",
+      matches: [
+        { home: "SN", away: "BH", homeScore: 4, awayScore: 0, stage: "Group E", scorers: ["mane", "mane", "mane"], motm: "mane" },
+        { home: "ES", away: "NG", homeScore: 2, awayScore: 1, stage: "Group G", scorers: ["yamal", "pedri"], motm: "yamal" },
+        { home: "BR", away: "CO", homeScore: 0, awayScore: 1, stage: "Group E", scorers: ["l-diaz"], motm: "l-diaz" },
+      ],
+      commentary: [
+        "Brazil LOST to Colombia. Your drafted country is in trouble. But France topped their group, so Mbappé rolls on.",
+        "Mané hat trick! Senegal is on fire. Wait — that helps Wildcard, not you. But Japan qualified!",
+        "Colombia upset Brazil! Luis Díaz scored! Germany somehow scraped through. Mixed bag for you today.",
+        "Mané hat trick AND Yamal scored AND Pedri scored. Your Spain-Senegal combo just EXPLODED. +31!",
+      ],
+      hotTakeUpdate: { text: "\"Germany won't score a single goal\" — MISS. Musiala scored vs South Korea.", status: "miss" },
+      h2hResult: { opponent: "Emma", yourScore: 15, theirScore: 6 },
+      scoreDeltas: { favorite: 6, underdog: 10, balanced: 14, wildcard: 31 },
+      leaderboard: [
+        { rank: 1, name: "Sarah", score: 92, isYou: false, delta: 1 },
+        { rank: 2, name: "You", score: 88, isYou: true, delta: -1 },
+        { rank: 3, name: "Tom", score: 85, isYou: false, delta: 0 },
+        { rank: 4, name: "Chris", score: 78, isYou: false, delta: 0 },
+        { rank: 5, name: "Marcus", score: 71, isYou: false, delta: 1 },
+        { rank: 6, name: "Phil", score: 65, isYou: false, delta: -1 },
+        { rank: 7, name: "Lisa", score: 58, isYou: false, delta: 0 },
+        { rank: 8, name: "Dave", score: 42, isYou: false, delta: 0 },
+      ],
+    },
+    // ─── Day 9: Round of 16 ──────────────────────
+    {
+      day: 9,
+      title: "Knockout Begins",
+      matches: [
+        { home: "AR", away: "KR", homeScore: 2, awayScore: 1, stage: "R16", scorers: ["messi", "alvarez", "son"], motm: "messi" },
+        { home: "FR", away: "NG", homeScore: 1, awayScore: 0, stage: "R16", scorers: ["mbappe"], motm: "mbappe" },
+        { home: "GB-ENG", away: "SN", homeScore: 0, awayScore: 1, stage: "R16", scorers: ["mane"], motm: "mane" },
+      ],
+      commentary: [
+        "Argentina advances! Messi + Álvarez both scored. France wins too. Your elite countries march on. +25!",
+        "South Korea lost to Argentina but Son scored. And SENEGAL BEAT ENGLAND. The underdogs keep punching up!",
+        "England are OUT. Senegal's Mané sent them home. This is a disaster for your portfolio. -8 for the country elimination.",
+        "Senegal beat England — YOUR Senegal beat someone else's England! Mané is a one-man wrecking ball. +19!",
+      ],
+      hotTakeUpdate: { text: "\"An African team makes the semis\" — Senegal in the QF. Sarah's take is ALIVE!", status: "trending" },
+      scoreDeltas: { favorite: 25, underdog: 12, balanced: -8, wildcard: 19 },
+      leaderboard: [
+        { rank: 1, name: "You", score: 113, isYou: true, delta: 1 },
+        { rank: 2, name: "Sarah", score: 108, isYou: false, delta: -1 },
+        { rank: 3, name: "Tom", score: 98, isYou: false, delta: 0 },
+        { rank: 4, name: "Chris", score: 89, isYou: false, delta: 0 },
+        { rank: 5, name: "Marcus", score: 82, isYou: false, delta: 0 },
+        { rank: 6, name: "Phil", score: 72, isYou: false, delta: 0 },
+        { rank: 7, name: "Lisa", score: 60, isYou: false, delta: 0 },
+        { rank: 8, name: "Dave", score: 45, isYou: false, delta: 2 },
+      ],
+    },
+    // ─── Day 12: Quarterfinals ───────────────────
+    {
+      day: 12,
+      title: "Quarterfinal Fire",
+      matches: [
+        { home: "AR", away: "DE", homeScore: 3, awayScore: 2, stage: "QF", scorers: ["messi", "messi", "alvarez", "musiala", "wirtz"], motm: "messi" },
+        { home: "FR", away: "ES", homeScore: 2, awayScore: 2, stage: "QF", scorers: ["mbappe", "griezmann", "yamal", "pedri"] },
+        { home: "SN", away: "JP", homeScore: 1, awayScore: 0, stage: "QF", scorers: ["mane"], motm: "mane" },
+      ],
+      commentary: [
+        "MESSI BRACE against Germany! Argentina in the semis! France beat Spain on penalties — Mbappé scored again! You're FLYING. +38!",
+        "Japan lost to Senegal. Heartbreak. But Senegal is in the SEMIS — Sarah's hot take is going to hit!",
+        "Germany is OUT (your country) but Musiala scored. France beat Spain on pens — both your Bellingham and Musiala are still alive. Oh wait, England are already out...",
+        "Spain lost on penalties to France. Yamal and Pedri both scored but it wasn't enough. Senegal marches on though! +22.",
+      ],
+      h2hResult: { opponent: "Sarah", yourScore: 18, theirScore: 14 },
+      scoreDeltas: { favorite: 38, underdog: 8, balanced: 5, wildcard: 22 },
+      leaderboard: [
+        { rank: 1, name: "You", score: 151, isYou: true, delta: 0 },
+        { rank: 2, name: "Sarah", score: 134, isYou: false, delta: 0 },
+        { rank: 3, name: "Tom", score: 118, isYou: false, delta: 0 },
+        { rank: 4, name: "Marcus", score: 105, isYou: false, delta: 1 },
+        { rank: 5, name: "Chris", score: 96, isYou: false, delta: -1 },
+        { rank: 6, name: "Phil", score: 80, isYou: false, delta: 0 },
+        { rank: 7, name: "Lisa", score: 68, isYou: false, delta: 0 },
+        { rank: 8, name: "Dave", score: 48, isYou: false, delta: 0 },
+      ],
+    },
+    // ─── Day 14: The Final ───────────────────────
+    {
+      day: 14,
+      title: "🏆 The Final",
+      matches: [
+        { home: "AR", away: "FR", homeScore: 2, awayScore: 1, stage: "Final", scorers: ["messi", "alvarez", "mbappe"], motm: "messi" },
+      ],
+      commentary: [
+        "ARGENTINA WIN THE WORLD CUP! AGAIN! Messi scores in the final! Mbappé got one back but it wasn't enough. Your allegiance, your country, your GOAT. +55 final day!",
+        "France lost the final. Your underdogs made the journey interesting but Argentina were too strong. Still — you finished higher than anyone expected.",
+        "Argentina beat France in the final. Neither of your remaining countries made it, but the ride was real.",
+        "Argentina beat France. Your USA run ended in the quarters. But you outperformed expectations and the office knows it.",
+      ],
+      hotTakeUpdate: { text: "\"Argentina wins it all\" — Isaiah's take HITS! 8 backers, popular take, 1.5x payout.", status: "hit" },
+      scoreDeltas: { favorite: 55, underdog: 5, balanced: 3, wildcard: 8 },
+      leaderboard: [
+        { rank: 1, name: "You", score: 206, isYou: true, delta: 0 },
+        { rank: 2, name: "Sarah", score: 178, isYou: false, delta: 0 },
+        { rank: 3, name: "Tom", score: 142, isYou: false, delta: 0 },
+        { rank: 4, name: "Marcus", score: 128, isYou: false, delta: 0 },
+        { rank: 5, name: "Chris", score: 112, isYou: false, delta: 0 },
+        { rank: 6, name: "Phil", score: 95, isYou: false, delta: 0 },
+        { rank: 7, name: "Lisa", score: 82, isYou: false, delta: 0 },
+        { rank: 8, name: "Dave", score: 55, isYou: false, delta: 0 },
+      ],
+      awards: [
+        { icon: "🏆", name: "Champion", winner: "You" },
+        { icon: "🔮", name: "Crystal Ball", winner: "You" },
+        { icon: "😈", name: "Chaos Agent", winner: "Tom" },
+        { icon: "🧊", name: "The Jinx", winner: "Dave" },
+      ],
+    },
+  ],
+};
