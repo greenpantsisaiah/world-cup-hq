@@ -9,6 +9,10 @@ export async function GET(request: Request) {
   const type = searchParams.get("type");
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const redirectUrl = `${siteUrl}/admin`;
+
+  // Create the redirect response first so we can set cookies on it
+  const response = NextResponse.redirect(redirectUrl);
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -20,9 +24,10 @@ export async function GET(request: Request) {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            // Set on the response so cookies survive the redirect
+            response.cookies.set(name, value, options);
+          });
         },
       },
     }
@@ -41,5 +46,5 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.redirect(`${siteUrl}/admin`);
+  return response;
 }
