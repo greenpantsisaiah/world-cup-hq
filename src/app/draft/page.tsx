@@ -166,17 +166,17 @@ export default function DraftPage() {
     );
   }
 
-  const tabs: { id: DraftTab; label: string; icon: string }[] = LEAGUE_STATUS === "complete"
+  const tabs: { id: DraftTab; label: string; mobileLabel: string; icon: string }[] = LEAGUE_STATUS === "complete"
     ? [
-        { id: "grades", label: "Draft Grades", icon: "📊" },
-        { id: "compare", label: "Compare", icon: "⚔️" },
-        { id: "war-room", label: "Big Board", icon: "🗺️" },
-        { id: "my-team", label: "My Team", icon: "⚽" },
-        { id: "draft-board", label: "Draft Board", icon: "📋" },
+        { id: "grades", label: "Draft Grades", mobileLabel: "Grades", icon: "📊" },
+        { id: "compare", label: "Compare", mobileLabel: "VS", icon: "⚔️" },
+        { id: "war-room", label: "Big Board", mobileLabel: "Board", icon: "🗺️" },
+        { id: "my-team", label: "My Team", mobileLabel: "Team", icon: "⚽" },
+        { id: "draft-board", label: "Draft Board", mobileLabel: "Draft", icon: "📋" },
       ]
     : [
-        { id: "war-room", label: "War Room", icon: "🗺️" },
-        { id: "my-team", label: "My Team", icon: "⚽" },
+        { id: "war-room", label: "War Room", mobileLabel: "Plan", icon: "🗺️" },
+        { id: "my-team", label: "My Team", mobileLabel: "Team", icon: "⚽" },
       ];
 
   return (
@@ -216,6 +216,7 @@ export default function DraftPage() {
             }`}
           >
             <span>{tab.icon}</span>
+            <span className="md:hidden text-[10px]">{tab.mobileLabel}</span>
             <span className="hidden md:inline">{tab.label}</span>
           </button>
         ))}

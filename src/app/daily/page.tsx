@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/auth-provider";
+import { Confetti } from "@/components/confetti";
+import { MorningWhistleBanner } from "@/components/morning-whistle-banner";
 import { WORLD_CUP_COUNTRIES } from "@/data/countries";
 import { PLAYER_POOL } from "@/data/players";
 
@@ -58,19 +60,25 @@ export default function DailyPage() {
     return p?.winner && p?.goals && p?.scorer;
   }).length;
 
-  const tabs: { id: DailyTab; label: string; icon: string; badge?: string }[] = [
-    { id: "picks", label: "Daily Picks", icon: "🎲" },
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  const tabs: { id: DailyTab; label: string; mobileLabel: string; icon: string; badge?: string }[] = [
+    { id: "picks", label: "Daily Picks", mobileLabel: "Picks", icon: "🎲" },
     {
       id: "predictions",
       label: "Speed Round",
+      mobileLabel: "Speed",
       icon: "⚡",
       badge: completedPredictions > 0 ? `${completedPredictions}/${SAMPLE_MATCHES.length}` : undefined,
     },
-    { id: "h2h", label: "Head-to-Head", icon: "⚔️" },
+    { id: "h2h", label: "Head-to-Head", mobileLabel: "H2H", icon: "⚔️" },
   ];
 
   return (
     <div className="space-y-6">
+      {showConfetti && <Confetti />}
+      <MorningWhistleBanner />
+
       {/* Header with countdown feel */}
       <div className="flex items-end justify-between">
         <div>
@@ -104,6 +112,7 @@ export default function DailyPage() {
             }`}
           >
             <span>{tab.icon}</span>
+            <span className="md:hidden">{tab.mobileLabel}</span>
             <span className="hidden md:inline">{tab.label}</span>
             {tab.badge && (
               <span className="absolute -top-1.5 -right-1 px-1.5 py-0.5 bg-[var(--gold)] text-[var(--background)] text-[10px] font-bold rounded-full">
@@ -164,9 +173,15 @@ export default function DailyPage() {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-[var(--muted)] max-w-xs mx-auto">
-                  Picks are blind until everyone submits. Check back for the reveal!
-                </p>
+                {/* Social proof */}
+                <div className="rounded-xl bg-[var(--gold)]/5 border border-[var(--gold)]/20 p-3">
+                  <p className="text-sm text-[var(--gold)]">
+                    You&apos;re the 4th person to submit today
+                  </p>
+                  <p className="text-xs text-[var(--muted)] mt-1">
+                    Sarah, Marcus, and Lisa already locked in. Picks are blind until everyone submits.
+                  </p>
+                </div>
               </motion.div>
             ) : (
               <>
@@ -264,7 +279,7 @@ export default function DailyPage() {
                     >
                       <div className="max-w-5xl mx-auto">
                         <button
-                          onClick={() => setPicksSubmitted(true)}
+                          onClick={() => { setPicksSubmitted(true); setShowConfetti(true); }}
                           className="w-full py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/20"
                         >
                           Lock in Daily Picks 🔒

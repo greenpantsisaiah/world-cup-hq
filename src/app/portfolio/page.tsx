@@ -6,6 +6,7 @@ import { RadialScore } from "@/components/radial-score";
 import { DashboardTile } from "@/components/dashboard-tile";
 import { FutCard } from "@/components/player-fut-card";
 import { Sparkline } from "@/components/sparkline";
+import { MorningWhistleBanner } from "@/components/morning-whistle-banner";
 import { AnimatedNumber } from "@/components/animated-number";
 import { WORLD_CUP_COUNTRIES } from "@/data/countries";
 import { PLAYER_POOL } from "@/data/players";
@@ -52,6 +53,8 @@ export default function PortfolioPage() {
 
   return (
     <div className="space-y-8">
+      <MorningWhistleBanner />
+
       {/* ── Header ─────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
