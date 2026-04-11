@@ -1,7 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { AnimatedNumber } from "@/components/animated-number";
 import { Sparkline } from "@/components/sparkline";
@@ -59,6 +61,111 @@ const HOW_IT_WORKS = [
   { step: 4, title: "Win Glory", description: "Leaderboard updates with every goal. Awards, roasts, and bragging rights for the whole tournament.", icon: "🏆" },
 ];
 
+function HeroCTA({ user, profile }: { user: unknown; profile: { name: string } | null }) {
+  const [showJoinInput, setShowJoinInput] = useState(false);
+  const [code, setCode] = useState("");
+  const router = useRouter();
+
+  if (user) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="space-y-3 pt-4"
+      >
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            href="/portfolio"
+            className="px-8 py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/30"
+          >
+            Go to Dashboard →
+          </Link>
+        </div>
+        <div className="text-sm text-[var(--muted)] text-center">
+          Playing as <strong className="text-[var(--foreground)]">{profile?.name}</strong>
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.5 }}
+      className="space-y-4 pt-4 max-w-lg mx-auto"
+    >
+      {/* Primary actions */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <Link
+          href="/admin"
+          className="w-full sm:w-auto px-8 py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/30 text-center"
+        >
+          Create a League
+        </Link>
+        <button
+          onClick={() => setShowJoinInput(!showJoinInput)}
+          className="w-full sm:w-auto px-8 py-4 bg-[var(--surface)] text-[var(--foreground)] font-bold rounded-2xl hover:bg-[var(--surface-light)] transition-colors text-lg border border-[var(--surface-border)] text-center"
+        >
+          Join with Code
+        </button>
+      </div>
+
+      {/* Invite code input — expands when clicked */}
+      <AnimatePresence>
+        {showJoinInput && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex gap-2 pt-1">
+              <input
+                type="text"
+                placeholder="Enter invite code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                className="flex-1 px-4 py-3 bg-[var(--surface)] border border-[var(--surface-border)] rounded-xl text-sm font-mono tracking-widest text-center focus:outline-none focus:border-[var(--gold)]/50"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && code.trim()) {
+                    router.push(`/admin?code=${code.trim()}`);
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (code.trim()) router.push(`/admin?code=${code.trim()}`);
+                }}
+                disabled={!code.trim()}
+                className={`px-6 py-3 font-bold rounded-xl transition-colors ${
+                  code.trim()
+                    ? "bg-[var(--gold)] text-[var(--background)] hover:bg-[var(--gold-dim)]"
+                    : "bg-[var(--surface-light)] text-[var(--muted)] opacity-40"
+                }`}
+              >
+                Join
+              </button>
+            </div>
+            <p className="text-xs text-[var(--muted)] text-center mt-2">
+              You&apos;ll sign in first, then automatically join the league
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Try simulation link */}
+      <div className="text-center">
+        <Link href="/try" className="text-sm text-[var(--muted)] hover:text-[var(--gold)] transition-colors">
+          or try a simulation first →
+        </Link>
+      </div>
+    </motion.div>
+  );
+}
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.1 } },
@@ -100,47 +207,7 @@ export default function HomePage() {
           </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
-        >
-          {user ? (
-            <Link
-              href="/portfolio"
-              className="px-8 py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/30"
-            >
-              Go to Dashboard →
-            </Link>
-          ) : (
-            <>
-              <Link
-                href="/admin"
-                className="px-8 py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/30"
-              >
-                Create Your League
-              </Link>
-              <Link
-                href="/try"
-                className="px-8 py-4 bg-[var(--surface)] text-[var(--foreground)] font-bold rounded-2xl hover:bg-[var(--surface-light)] transition-colors text-lg border border-[var(--surface-border)]"
-              >
-                Try a Simulation ⚡
-              </Link>
-            </>
-          )}
-        </motion.div>
-
-        {user && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="text-sm text-[var(--muted)]"
-          >
-            Playing as <strong className="text-[var(--foreground)]">{profile?.name || user.email}</strong>
-          </motion.div>
-        )}
+        <HeroCTA user={user} profile={profile} />
       </section>
 
       {/* ═══════════════════════════════════════════════ */}

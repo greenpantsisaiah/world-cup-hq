@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/auth-provider";
 import { createLeague, getMyLeagues, getLeagueMembers, joinLeagueByCode } from "@/lib/supabase-actions";
 import type { ScoringPreset } from "@/lib/types";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 interface LeagueRow {
   id: string;
@@ -31,8 +32,10 @@ interface MemberRow {
   avatar_url: string | null;
 }
 
-export default function AdminPage() {
+function AdminContent() {
   const { user, profile, loading, signInWithMagicLink, signInWithPassword, signInWithGoogle, signInWithMicrosoft, signOut } = useAuth();
+  const searchParams = useSearchParams();
+  const codeFromUrl = searchParams.get("code");
 
   const [email, setEmail] = useState("");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
@@ -51,22 +54,35 @@ export default function AdminPage() {
 
   const [league, setLeague] = useState<LeagueRow | null>(null);
   const [members, setMembers] = useState<MemberRow[]>([]);
-  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState(codeFromUrl || "");
   const [joinError, setJoinError] = useState<string | null>(null);
   const [showJoin, setShowJoin] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (user) {
-      getMyLeagues().then((leagues) => {
+      getMyLeagues().then(async (leagues) => {
         if (leagues.length > 0) {
           const l = leagues[0] as LeagueRow;
           setLeague(l);
           getLeagueMembers(l.id).then((m) => setMembers(m as MemberRow[]));
+        } else if (codeFromUrl) {
+          // Auto-join if they came with an invite code and have no league
+          try {
+            await joinLeagueByCode(codeFromUrl);
+            const refreshed = await getMyLeagues();
+            if (refreshed.length > 0) {
+              const l = refreshed[0] as LeagueRow;
+              setLeague(l);
+              getLeagueMembers(l.id).then((m) => setMembers(m as MemberRow[]));
+            }
+          } catch {
+            setJoinError("Invalid invite code");
+          }
         }
       });
     }
-  }, [user]);
+  }, [user, codeFromUrl]);
 
   const handleMagicLink = async () => {
     setAuthError(null);
@@ -518,5 +534,17 @@ export default function AdminPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={
+      <div className="text-center py-20">
+        <div className="text-4xl animate-spin">⚽</div>
+      </div>
+    }>
+      <AdminContent />
+    </Suspense>
   );
 }
