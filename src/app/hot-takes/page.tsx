@@ -69,6 +69,7 @@ export default function HotTakesPage() {
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [myVotes, setMyVotes] = useState<Record<string, "back" | "fade">>({});
+  const [justVoted, setJustVoted] = useState<Record<string, boolean>>({});
 
   const filteredTakes = DEMO_TAKES.filter((take) => {
     if (filter === "mine") return take.author === profile?.name;
@@ -149,11 +150,15 @@ export default function HotTakesPage() {
       {/* Takes list */}
       <div className="space-y-4">
         {filteredTakes.map((take, i) => {
-          const backerPct = Math.round((take.backers / (take.backers + take.faders)) * 100);
+          const displayBackers = take.backers + (myVotes[take.id] === "back" ? 1 : 0);
+          const displayFaders = take.faders + (myVotes[take.id] === "fade" ? 1 : 0);
+          const backerPct = Math.round((displayBackers / (displayBackers + displayFaders)) * 100);
           const faderPct = 100 - backerPct;
           const isResolved = take.status.startsWith("resolved");
           const isHit = take.status === "resolved_hit";
           const myVote = myVotes[take.id];
+          const backerPoints = Math.round(10 * (1 / (backerPct / 100 || 0.05)));
+          const wasJustVoted = justVoted[take.id];
 
           return (
             <motion.div
@@ -202,13 +207,39 @@ export default function HotTakesPage() {
                 {/* Sentiment bar */}
                 <div className="mb-4">
                   <div className="flex justify-between text-[10px] text-[var(--muted)] mb-1">
-                    <span>👍 {take.backers} ({backerPct}%)</span>
-                    <span>👎 {take.faders} ({faderPct}%)</span>
+                    <span>👍 {displayBackers} ({backerPct}%)</span>
+                    <span>👎 {displayFaders} ({faderPct}%)</span>
                   </div>
-                  <div className="h-2.5 rounded-full overflow-hidden flex bg-[var(--surface-light)]">
-                    <div className="bg-[var(--emerald)] rounded-l-full transition-all" style={{ width: `${backerPct}%` }} />
-                    <div className="bg-[var(--crimson)] rounded-r-full transition-all" style={{ width: `${faderPct}%` }} />
-                  </div>
+                  <motion.div
+                    className="h-2.5 rounded-full overflow-hidden flex bg-[var(--surface-light)]"
+                    animate={wasJustVoted ? { scale: [1, 1.05, 1] } : {}}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <motion.div
+                      className="bg-[var(--emerald)] rounded-l-full"
+                      animate={{ width: `${backerPct}%` }}
+                      transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                    />
+                    <motion.div
+                      className="bg-[var(--crimson)] rounded-r-full"
+                      animate={{ width: `${faderPct}%` }}
+                      transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                    />
+                  </motion.div>
+                  <AnimatePresence>
+                    {myVote && wasJustVoted && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-2 text-[11px] text-[var(--muted)] italic"
+                      >
+                        {myVote === "back"
+                          ? `If this hits, backers earn +${backerPoints}. If it misses, faders win.`
+                          : `If this misses, faders win. If it hits, backers earn +${backerPoints}.`}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Actions */}
@@ -219,7 +250,11 @@ export default function HotTakesPage() {
                   {!isResolved && (
                     <div className="flex gap-2">
                       <button
-                        onClick={() => setMyVotes((v) => ({ ...v, [take.id]: "back" }))}
+                        onClick={() => {
+                          setMyVotes((v) => ({ ...v, [take.id]: "back" }));
+                          setJustVoted((v) => ({ ...v, [take.id]: true }));
+                          setTimeout(() => setJustVoted((v) => ({ ...v, [take.id]: false })), 3000);
+                        }}
                         className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                           myVote === "back"
                             ? "bg-[var(--emerald)] text-white shadow-lg shadow-[var(--emerald)]/20"
@@ -229,7 +264,11 @@ export default function HotTakesPage() {
                         👍 Back
                       </button>
                       <button
-                        onClick={() => setMyVotes((v) => ({ ...v, [take.id]: "fade" }))}
+                        onClick={() => {
+                          setMyVotes((v) => ({ ...v, [take.id]: "fade" }));
+                          setJustVoted((v) => ({ ...v, [take.id]: true }));
+                          setTimeout(() => setJustVoted((v) => ({ ...v, [take.id]: false })), 3000);
+                        }}
                         className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                           myVote === "fade"
                             ? "bg-[var(--crimson)] text-white shadow-lg shadow-[var(--crimson)]/20"

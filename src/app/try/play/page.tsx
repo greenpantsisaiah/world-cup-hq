@@ -9,6 +9,8 @@ import { AnimatedNumber } from "@/components/animated-number";
 import { WORLD_CUP_COUNTRIES } from "@/data/countries";
 import Link from "next/link";
 
+const SHARE_URL = "https://world-cup-hq-eight.vercel.app/try";
+
 function PlayContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -20,6 +22,7 @@ function PlayContent() {
   const [totalScore, setTotalScore] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [shareTextCopied, setShareTextCopied] = useState(false);
 
   const day = currentDay >= 0 ? timeline.days[currentDay] : null;
 
@@ -107,6 +110,63 @@ function PlayContent() {
               ))}
             </div>
           )}
+        </motion.div>
+
+        {/* Share Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9 }}
+          className="max-w-md w-full"
+        >
+          <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-[var(--gold)]/20 via-[var(--surface)] to-[var(--electric)]/20 border border-[var(--gold)]/30 p-6 space-y-4">
+            <div className="text-[10px] uppercase tracking-widest text-[var(--muted)] text-center">Share Your Result</div>
+            <div className="flex items-center justify-center gap-4">
+              <div className="text-5xl">{persona.icon}</div>
+              <div className="text-left">
+                <div className="font-black text-lg">{persona.name}</div>
+                <div className="text-xs text-[var(--muted)]">{timeline.name} timeline</div>
+              </div>
+            </div>
+            <div className="flex items-center justify-center gap-6">
+              <div className="text-center">
+                <div className="text-4xl font-black text-[var(--gold)]">{totalScore}</div>
+                <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Points</div>
+              </div>
+              <div className="w-px h-12 bg-[var(--surface-border)]" />
+              <div className="text-center">
+                <div className="text-4xl font-black">#{finalRank}</div>
+                <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">of 8</div>
+              </div>
+            </div>
+            {finalAwards.filter((a) => a.winner === "You").length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {finalAwards.filter((a) => a.winner === "You").map((award) => (
+                  <span key={award.name} className="flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--gold)]/10 text-xs font-bold">
+                    <span>{award.icon}</span>
+                    <span>{award.name}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="text-center text-[10px] text-[var(--muted)]">World Cup HQ</div>
+            <button
+              onClick={() => {
+                const awards = finalAwards.filter((a) => a.winner === "You").map((a) => `${a.icon} ${a.name}`).join(", ");
+                const text = `I scored ${totalScore} pts as ${persona.name} in the ${timeline.name} timeline on World Cup HQ!${awards ? ` Awards: ${awards}.` : ""} Can you beat me? ${SHARE_URL}`;
+                navigator.clipboard.writeText(text);
+                setShareTextCopied(true);
+                setTimeout(() => setShareTextCopied(false), 2000);
+              }}
+              className={`w-full py-3 font-bold rounded-xl text-sm transition-all ${
+                shareTextCopied
+                  ? "bg-[var(--emerald)] text-white"
+                  : "bg-[var(--surface-light)] hover:bg-[var(--surface-border)] text-[var(--foreground)]"
+              }`}
+            >
+              {shareTextCopied ? "Copied!" : "Copy Result"}
+            </button>
+          </div>
         </motion.div>
 
         {/* CTA */}

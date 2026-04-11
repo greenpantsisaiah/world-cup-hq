@@ -355,8 +355,9 @@ export default function DailyPage() {
                         {isComplete && (
                           <motion.div
                             initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="text-xs text-[var(--emerald)] font-bold mt-1"
+                            animate={{ scale: [0, 1.4, 1] }}
+                            transition={{ type: "spring", stiffness: 300, damping: 12 }}
+                            className="text-xs font-bold mt-1 px-2 py-0.5 rounded-full bg-[var(--emerald)]/15 text-[var(--emerald)] border border-[var(--emerald)]/20"
                           >
                             ✓ Locked
                           </motion.div>
@@ -377,6 +378,14 @@ export default function DailyPage() {
 
                   {/* Predictions — stacked with visual variety */}
                   <div className="bg-[var(--surface)] p-5 space-y-5">
+                    {/* Speed Round urgency cue */}
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--gold)]/5 border border-[var(--gold)]/10">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--gold)] opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--gold)]" />
+                      </span>
+                      <span className="text-xs font-bold text-[var(--gold)] uppercase tracking-wider">Speed Round</span>
+                    </div>
 
                     {/* Q1: Winner — big flag buttons */}
                     <div>

@@ -423,6 +423,55 @@ function AdminContent() {
               </div>
             </div>
 
+            {/* Draft Night Countdown — pre-draft anticipation */}
+            {league.draft_status === "pre_draft" && (
+              <div className="rounded-2xl bg-[var(--surface)] overflow-hidden">
+                <div className="p-6 text-center space-y-4">
+                  <div className="text-4xl">🌙</div>
+                  <h3 className="text-xl font-black">Draft night is coming!</h3>
+                  <p className="text-sm text-[var(--muted)]">Schedule draft night with your league</p>
+
+                  {/* Player progress bar */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-bold text-[var(--gold)]">{members.length} of {league.max_participants} players joined</span>
+                      <span className="text-[var(--muted)]">{Math.round((members.length / league.max_participants) * 100)}%</span>
+                    </div>
+                    <div className="h-3 bg-[var(--surface-light)] rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full bg-gradient-to-r from-[var(--gold)] to-[var(--gold-dim)] rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(members.length / league.max_participants) * 100}%` }}
+                        transition={{ type: "spring", delay: 0.3 }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Checklist */}
+                <div className="border-t border-[var(--surface-border)]/50 p-4 space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-3 px-2">
+                    Things to do while you wait
+                  </div>
+                  {[
+                    { icon: "📋", label: "Rank your countries in the War Room", href: "/draft" },
+                    { icon: "⚡", label: "Try a tournament simulation", href: "/try" },
+                    { icon: "🔥", label: "Submit your first hot take", href: "/hot-takes" },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-[var(--surface-light)] transition-colors group"
+                    >
+                      <span className="text-lg">{item.icon}</span>
+                      <span className="flex-1 text-sm font-semibold">{item.label}</span>
+                      <span className="text-[var(--muted)] group-hover:text-[var(--gold)] transition-colors text-sm">→</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Quick actions */}
             <div className="grid grid-cols-2 gap-3">
               <Link href="/draft" className="rounded-2xl bg-[var(--surface)] p-5 text-center hover:bg-[var(--surface-light)] transition-colors group">
