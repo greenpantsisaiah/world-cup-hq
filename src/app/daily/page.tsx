@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/auth-provider";
 import { Confetti } from "@/components/confetti";
+import { MilestoneToast } from "@/components/milestone-toast";
 import { MorningWhistleBanner } from "@/components/morning-whistle-banner";
 import { WORLD_CUP_COUNTRIES } from "@/data/countries";
 import { PLAYER_POOL } from "@/data/players";
@@ -61,6 +62,7 @@ export default function DailyPage() {
   }).length;
 
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showMilestone, setShowMilestone] = useState(false);
 
   const tabs: { id: DailyTab; label: string; mobileLabel: string; icon: string; badge?: string }[] = [
     { id: "picks", label: "Daily Picks", mobileLabel: "Picks", icon: "🎲" },
@@ -77,6 +79,13 @@ export default function DailyPage() {
   return (
     <div className="space-y-6">
       {showConfetti && <Confetti />}
+      <MilestoneToast
+        icon="🔥"
+        title="4-day prediction streak!"
+        subtitle="Keep it going tomorrow."
+        isVisible={showMilestone}
+        onDismiss={() => setShowMilestone(false)}
+      />
       <MorningWhistleBanner />
 
       {/* Header with countdown feel */}
@@ -279,7 +288,7 @@ export default function DailyPage() {
                     >
                       <div className="max-w-5xl mx-auto">
                         <button
-                          onClick={() => { setPicksSubmitted(true); setShowConfetti(true); }}
+                          onClick={() => { setPicksSubmitted(true); setShowConfetti(true); setTimeout(() => setShowMilestone(true), 1200); }}
                           className="w-full py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/20"
                         >
                           Lock in Daily Picks 🔒

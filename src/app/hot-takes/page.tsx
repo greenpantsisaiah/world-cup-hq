@@ -114,6 +114,28 @@ export default function HotTakesPage() {
               maxLength={500}
               className="w-full p-3 bg-[var(--surface-light)] border border-[var(--surface-border)] rounded-xl text-sm resize-none h-24 focus:outline-none focus:border-[var(--gold)]/50"
             />
+            {/* First-timer guidance */}
+            <details className="mt-3 group">
+              <summary className="flex items-center gap-1.5 text-xs text-[var(--muted)] cursor-pointer hover:text-[var(--foreground)] transition-colors select-none">
+                <span>💡</span>
+                <span>Tips for great hot takes</span>
+              </summary>
+              <div className="mt-2 space-y-1.5 p-3 rounded-xl bg-[var(--surface-light)] border border-[var(--surface-border)]">
+                <p className="text-xs text-[var(--muted)]">
+                  <span className="font-bold text-[var(--foreground)]">Be specific:</span>{" "}
+                  &ldquo;France won&apos;t make the QF&rdquo; beats &ldquo;France bad&rdquo;
+                </p>
+                <p className="text-xs text-[var(--muted)]">
+                  <span className="font-bold text-[var(--foreground)]">Be bold:</span>{" "}
+                  the more people disagree, the bigger your payout
+                </p>
+                <p className="text-xs text-[var(--muted)]">
+                  <span className="font-bold text-[var(--foreground)]">Think ahead:</span>{" "}
+                  takes lock when the relevant stage begins
+                </p>
+              </div>
+            </details>
+
             <div className="flex items-center justify-between mt-3">
               <span className="text-xs text-[var(--muted)]">{newTake.length}/500</span>
               <div className="flex gap-2">

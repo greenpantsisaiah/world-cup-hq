@@ -88,6 +88,14 @@ const AI_TIER_QUIPS: Record<string, string[]> = {
   ],
 };
 
+const DRAFT_HIGHLIGHTS = [
+  { icon: "🎯", title: "Best Value Pick", desc: "Sarah got France at #2 — a top-3 team at a top-3 pick", player: "Sarah", accent: "from-[var(--gold)]/20 to-transparent" },
+  { icon: "😱", title: "Biggest Steal", desc: "Tom grabbed USA at #13 — the host nation, overlooked by 12 people", player: "Tom", accent: "from-[var(--emerald)]/20 to-transparent" },
+  { icon: "🎰", title: "Boldest Pick", desc: "Zoe went Denmark at #16 — zero people had them in their Must Have tier", player: "Zoe", accent: "from-[var(--electric)]/20 to-transparent" },
+  { icon: "💀", title: "Most Painful Pick", desc: "Isaiah's round 3: Saudi Arabia and Qatar. Two teams, zero combined World Cup wins. Ever.", player: "Isaiah", accent: "from-[var(--crimson)]/20 to-transparent" },
+  { icon: "🔥", title: "Best Player Pick", desc: "Isaiah grabbed Mbappe #1 overall. 4 goals, 1 assist, 2 MOTM so far.", player: "Isaiah", accent: "from-[var(--gold)]/20 to-transparent" },
+];
+
 type DraftTab = "war-room" | "grades" | "compare" | "my-team" | "draft-board";
 
 export default function DraftPage() {
@@ -600,6 +608,31 @@ export default function DraftPage() {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-4"
           >
+            {/* ── Draft Highlights Reel ─────────────── */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+                Draft Highlights
+              </h3>
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scrollbar-hide">
+                {DRAFT_HIGHLIGHTS.map((highlight, idx) => (
+                  <motion.div
+                    key={highlight.title}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.08 }}
+                    className={`snap-start shrink-0 w-[200px] rounded-2xl bg-gradient-to-b ${highlight.accent} bg-[var(--surface)] border border-[var(--surface-border)] p-4 space-y-2`}
+                  >
+                    <div className="text-3xl">{highlight.icon}</div>
+                    <div className="font-black text-sm leading-tight">{highlight.title}</div>
+                    <p className="text-xs text-[var(--muted)] leading-relaxed">{highlight.desc}</p>
+                    <div className="text-[10px] font-bold text-[var(--gold)] uppercase tracking-wider pt-1">
+                      {highlight.player}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
             {DRAFT_BOARD.map((round) => (
               <div key={round.round} className="card-glow rounded-2xl bg-[var(--surface)] overflow-hidden">
                 <div className="px-4 py-2 bg-[var(--surface-light)] border-b border-[var(--surface-border)]">

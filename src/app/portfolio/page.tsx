@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/auth-provider";
 import { RadialScore } from "@/components/radial-score";
 import { DashboardTile } from "@/components/dashboard-tile";
@@ -43,8 +44,20 @@ const COUNTRY_STATS: Record<string, { scored: number; conceded: number; w: numbe
 const SCORE_HISTORY = [0, 32, 78, 145, 210, 298, 355, 402, 430, 452, 467];
 const RANK_HISTORY = [8, 6, 5, 3, 4, 3, 3, 2, 3, 3, 3];
 
+const DAY_ZERO_CHECKLIST = [
+  { id: "draft", label: "Draft complete", done: true },
+  { id: "allegiance", label: "Allegiance set", done: true },
+  { id: "bigboard", label: "Rank your Big Board", done: false, href: "/draft" },
+  { id: "hottake", label: "Submit a hot take", done: false, href: "/hot-takes" },
+  { id: "simulation", label: "Try a simulation", done: false, href: "/daily" },
+] as const;
+
+const DAY_ZERO_COMPLETED = DAY_ZERO_CHECKLIST.filter((item) => item.done).length;
+const DAY_ZERO_TOTAL = DAY_ZERO_CHECKLIST.length;
+
 export default function PortfolioPage() {
   const { profile } = useAuth();
+  const [showDayZero, setShowDayZero] = useState(true);
 
   const total = Object.values(SCORES).reduce((a, b) => a + b, 0);
   const myCountries = MY_COUNTRIES.map((code) => WORLD_CUP_COUNTRIES.find((c) => c.code === code)).filter(Boolean);
@@ -73,6 +86,106 @@ export default function PortfolioPage() {
           <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Total Points</div>
         </div>
       </div>
+
+      {/* ── Day Zero — Anticipation State ────────────── */}
+      <AnimatePresence>
+        {showDayZero && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.3 }}
+            className="rounded-2xl overflow-hidden border border-[var(--gold)]/20 bg-gradient-to-br from-[var(--gold)]/5 via-[var(--surface)] to-[var(--electric)]/5"
+          >
+            <div className="p-5 space-y-5">
+              {/* Title */}
+              <div>
+                <h2 className="text-xl font-black flex items-center gap-2">
+                  <span>🏟️</span>
+                  <span>Your Team is Ready</span>
+                </h2>
+                <p className="text-sm text-[var(--muted)] mt-1 italic">
+                  First match kicks off soon — your portfolio is loaded and waiting
+                </p>
+              </div>
+
+              {/* Quick stats row */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl bg-[var(--surface)] p-3 text-center">
+                  <div className="text-2xl mb-1">
+                    {myCountries[0] && "flag" in myCountries[0] ? myCountries[0].flag : "🏳️"}
+                  </div>
+                  <div className="text-lg font-black">{MY_COUNTRIES.length}</div>
+                  <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Countries</div>
+                </div>
+                <div className="rounded-xl bg-[var(--surface)] p-3 text-center">
+                  <div className="text-2xl mb-1">⚽</div>
+                  <div className="text-lg font-black">{MY_PLAYERS.length}</div>
+                  <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Players</div>
+                </div>
+                <div className="rounded-xl bg-[var(--surface)] p-3 text-center">
+                  <div className="text-2xl mb-1">🎯</div>
+                  <div className="text-lg font-black text-[var(--emerald)]">Ready</div>
+                  <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">to Play</div>
+                </div>
+              </div>
+
+              {/* Pre-match checklist */}
+              <div className="space-y-2">
+                <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+                  Pre-match checklist
+                </div>
+                {DAY_ZERO_CHECKLIST.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2.5 text-sm">
+                    {item.done ? (
+                      <span className="text-[var(--emerald)] font-bold">✅</span>
+                    ) : (
+                      <span className="text-[var(--muted)]">☐</span>
+                    )}
+                    {item.done ? (
+                      <span className="text-[var(--foreground)]">{item.label}</span>
+                    ) : (
+                      <a
+                        href={"href" in item ? item.href : "#"}
+                        className="text-[var(--gold)] hover:underline font-semibold"
+                      >
+                        {item.label} →
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Badge teaser + progress */}
+              <div className="flex items-center gap-3 rounded-xl bg-[var(--gold)]/5 border border-[var(--gold)]/15 p-3">
+                <div className="text-2xl">🏅</div>
+                <div className="flex-1">
+                  <p className="text-xs text-[var(--muted)]">
+                    Complete all {DAY_ZERO_TOTAL} to earn the <span className="font-bold text-[var(--gold)]">Prepared</span> badge
+                  </p>
+                  <div className="mt-1.5 h-1.5 rounded-full bg-[var(--surface-light)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--gold)] transition-all"
+                      style={{ width: `${(DAY_ZERO_COMPLETED / DAY_ZERO_TOTAL) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-[var(--gold)]">
+                  {DAY_ZERO_COMPLETED}/{DAY_ZERO_TOTAL}
+                </span>
+              </div>
+
+              {/* Dismiss */}
+              <button
+                onClick={() => setShowDayZero(false)}
+                className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Got it, show me my stats →
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Top Row: Radial + Key Tiles ────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
