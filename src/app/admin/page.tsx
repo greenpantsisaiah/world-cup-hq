@@ -78,8 +78,13 @@ export default function AdminPage() {
     }
   };
 
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
   const handleCreateLeague = async () => {
     if (!user) return;
+    setCreateError(null);
+    setCreating(true);
     try {
       const newLeague = await createLeague({
         name: leagueName,
@@ -96,8 +101,10 @@ export default function AdminPage() {
       setLeague(newLeague as LeagueRow);
       const m = await getLeagueMembers(newLeague.id);
       setMembers(m as MemberRow[]);
-    } catch {
-      // handled
+    } catch (err) {
+      setCreateError("Failed to create league. Please try again.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -474,10 +481,14 @@ export default function AdminPage() {
 
                 <button
                   onClick={handleCreateLeague}
-                  className="w-full py-2.5 bg-[var(--gold)] text-[var(--background)] font-black rounded-xl hover:bg-[var(--gold-dim)] transition-colors text-sm"
+                  disabled={creating}
+                  className="w-full py-2.5 bg-[var(--gold)] text-[var(--background)] font-black rounded-xl hover:bg-[var(--gold-dim)] transition-colors text-sm disabled:opacity-60"
                 >
-                  Create League ⚽
+                  {creating ? "Creating..." : "Create League ⚽"}
                 </button>
+                {createError && (
+                  <p className="text-xs text-[var(--crimson)] text-center mt-2">{createError}</p>
+                )}
               </div>
             </div>
           </motion.div>
