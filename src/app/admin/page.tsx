@@ -248,6 +248,7 @@ function AdminContent() {
                       Continue with Google
                     </button>
 
+                    {/* Microsoft — uncomment when Azure app is registered
                     <button
                       onClick={async () => {
                         setAuthError(null);
@@ -264,6 +265,7 @@ function AdminContent() {
                       </svg>
                       Continue with Microsoft
                     </button>
+                    */}
                   </div>
 
                   <div className="flex items-center gap-3">
