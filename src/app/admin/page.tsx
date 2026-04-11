@@ -37,11 +37,26 @@ function AdminContent() {
   const searchParams = useSearchParams();
   const codeFromUrl = searchParams.get("code");
 
+  // Persist invite code across OAuth redirects
+  useEffect(() => {
+    if (codeFromUrl) {
+      localStorage.setItem("wchq_invite_code", codeFromUrl);
+    }
+  }, [codeFromUrl]);
+
+  const getPendingCode = () => {
+    return codeFromUrl || localStorage.getItem("wchq_invite_code") || "";
+  };
+
+  const clearPendingCode = () => {
+    localStorage.removeItem("wchq_invite_code");
+  };
+
   const [email, setEmail] = useState("");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
 
-  const [step, setStep] = useState<"name" | "preset" | "size">("name");
   const [leagueName, setLeagueName] = useState("Office World Cup 2026");
   const [preset, setPreset] = useState<ScoringPreset>("standard");
   const [maxParticipants, setMaxParticipants] = useState(16);
@@ -54,22 +69,25 @@ function AdminContent() {
 
   const [league, setLeague] = useState<LeagueRow | null>(null);
   const [members, setMembers] = useState<MemberRow[]>([]);
-  const [inviteCode, setInviteCode] = useState(codeFromUrl || "");
+  const [inviteCode, setInviteCode] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
-  const [showJoin, setShowJoin] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (user) {
+      const pendingCode = getPendingCode();
       getMyLeagues().then(async (leagues) => {
         if (leagues.length > 0) {
           const l = leagues[0] as LeagueRow;
           setLeague(l);
+          clearPendingCode();
           getLeagueMembers(l.id).then((m) => setMembers(m as MemberRow[]));
-        } else if (codeFromUrl) {
-          // Auto-join if they came with an invite code and have no league
+        } else if (pendingCode) {
+          // Auto-join with the pending invite code
+          setJoining(true);
           try {
-            await joinLeagueByCode(codeFromUrl);
+            await joinLeagueByCode(pendingCode);
+            clearPendingCode();
             const refreshed = await getMyLeagues();
             if (refreshed.length > 0) {
               const l = refreshed[0] as LeagueRow;
@@ -77,12 +95,16 @@ function AdminContent() {
               getLeagueMembers(l.id).then((m) => setMembers(m as MemberRow[]));
             }
           } catch {
-            setJoinError("Invalid invite code");
+            setJoinError("Invalid invite code or league is full");
+            setInviteCode(pendingCode);
+            clearPendingCode();
+          } finally {
+            setJoining(false);
           }
         }
       });
     }
-  }, [user, codeFromUrl]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleMagicLink = async () => {
     setAuthError(null);
@@ -155,10 +177,11 @@ function AdminContent() {
     { id: "competitive", icon: "🔥", name: "Competitive", desc: "Deep scoring, async drafts", best: "Hardcore fans" },
   ];
 
-  if (loading) {
+  if (loading || joining) {
     return (
-      <div className="text-center py-20">
+      <div className="text-center py-20 space-y-3">
         <div className="text-4xl animate-spin">⚽</div>
+        {joining && <p className="text-[var(--muted)] text-sm">Joining league...</p>}
       </div>
     );
   }
