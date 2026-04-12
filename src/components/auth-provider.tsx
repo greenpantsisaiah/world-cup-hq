@@ -30,9 +30,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+
+  // Lazy-init: don't create client during SSR/prerendering
+  const getSupabase = () => createClient();
 
   useEffect(() => {
+    const supabase = getSupabase();
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -58,7 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchProfile(userId: string) {
-    const { data } = await supabase
+    const sb = getSupabase();
+    const { data } = await sb
       .from("profiles")
       .select("*")
       .eq("id", userId)
@@ -67,7 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signInWithMagicLink(email: string) {
-    const { error } = await supabase.auth.signInWithOtp({
+    const sb = getSupabase();
+    const { error } = await sb.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -77,12 +82,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signInWithPassword(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const sb = getSupabase();
+    const { error } = await sb.auth.signInWithPassword({ email, password });
     return { error: error as Error | null };
   }
 
   async function signInWithGoogle() {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const sb = getSupabase();
+    const { error } = await sb.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
@@ -92,7 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signInWithMicrosoft() {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const sb = getSupabase();
+    const { error } = await sb.auth.signInWithOAuth({
       provider: "azure",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
@@ -103,7 +111,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    const sb = getSupabase();
+    await sb.auth.signOut();
     setUser(null);
     setProfile(null);
     setSession(null);
@@ -111,7 +120,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function updateProfile(updates: Partial<Profile>) {
     if (!user) return;
-    const { data } = await supabase
+    const sb = getSupabase();
+    const { data } = await sb
       .from("profiles")
       .update(updates)
       .eq("id", user.id)
