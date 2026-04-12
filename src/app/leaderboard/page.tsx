@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { motion } from "framer-motion";
 import { AnimatedNumber } from "@/components/animated-number";
 import { Sparkline } from "@/components/sparkline";
@@ -51,6 +52,15 @@ export default function LeaderboardPage() {
         <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
           The Race — Top 5
         </div>
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--emerald)]/5 border border-[var(--emerald)]/15 text-xs"
+        >
+          <span className="text-base">📈</span>
+          <span className="text-[var(--emerald)] font-bold">Your best day yet!</span>
+          <span className="text-[var(--muted)]">You climbed 2 spots yesterday — your Mbappé pick earned +18 pts</span>
+        </motion.div>
         <div className="space-y-3">
           {DEMO_LEADERBOARD.slice(0, 5).map((player, i) => {
             const widthPct = (player.score / maxScore) * 100;
@@ -110,68 +120,86 @@ export default function LeaderboardPage() {
             const isTop3 = i < 3;
             const isMe = player.name === "Isaiah";
             return (
-              <motion.div
-                key={player.name}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className={`flex items-center gap-3 px-5 py-3 ${
-                  isMe ? "bg-[var(--gold)]/5" : ""
-                } ${!isTop3 && !isMe ? "opacity-70" : ""}`}
-              >
-                {/* Rank */}
-                <div className="w-8 text-center font-black">
-                  {isTop3 ? ["🥇", "🥈", "🥉"][i] : (
-                    <span className="text-[var(--muted)]">{player.rank}</span>
-                  )}
-                </div>
+              <Fragment key={player.name}>
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className={`flex items-center gap-3 px-5 py-3 ${
+                    isMe ? "bg-[var(--gold)]/5" : ""
+                  } ${!isTop3 && !isMe ? "opacity-70" : ""}`}
+                >
+                  {/* Rank */}
+                  <div className="w-8 text-center font-black">
+                    {isTop3 ? ["🥇", "🥈", "🥉"][i] : (
+                      <span className="text-[var(--muted)]">{player.rank}</span>
+                    )}
+                  </div>
 
-                {/* Avatar + Name */}
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-lg">{player.allegiance}</span>
-                  <span className={`font-bold text-sm truncate ${isMe ? "text-[var(--gold)]" : ""}`}>
-                    {player.name}
-                    {isMe && <span className="text-[10px] ml-1 text-[var(--electric)]">(YOU)</span>}
-                  </span>
-                </div>
+                  {/* Avatar + Name */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-lg">{player.allegiance}</span>
+                    <span className={`font-bold text-sm truncate ${isMe ? "text-[var(--gold)]" : ""}`}>
+                      {player.name}
+                      {isMe && <span className="text-[10px] ml-1 text-[var(--electric)]">(YOU)</span>}
+                    </span>
+                  </div>
 
-                {/* Sparkline */}
-                <div className="hidden md:block">
-                  <Sparkline
-                    data={player.trend}
-                    color={player.change > 0 ? "var(--emerald)" : player.change < 0 ? "var(--crimson)" : "var(--muted)"}
-                    width={60}
-                    height={18}
-                    filled={false}
-                  />
-                </div>
+                  {/* Sparkline */}
+                  <div className="hidden md:block">
+                    <Sparkline
+                      data={player.trend}
+                      color={player.change > 0 ? "var(--emerald)" : player.change < 0 ? "var(--crimson)" : "var(--muted)"}
+                      width={60}
+                      height={18}
+                      filled={false}
+                    />
+                  </div>
 
-                {/* H2H */}
-                <div className="hidden md:block text-xs text-[var(--muted)] w-16 text-center">
-                  {player.h2h}
-                </div>
+                  {/* H2H */}
+                  <div className="hidden md:block text-xs text-[var(--muted)] w-16 text-center">
+                    {player.h2h}
+                  </div>
 
-                {/* Streak */}
-                <div className="hidden md:block w-12 text-center">
-                  {player.streak > 0 ? (
-                    <span className="text-xs font-bold text-[var(--gold)]">🔥{player.streak}</span>
-                  ) : (
-                    <span className="text-xs text-[var(--muted)]">—</span>
-                  )}
-                </div>
+                  {/* Streak */}
+                  <div className="hidden md:block w-12 text-center">
+                    {player.streak > 0 ? (
+                      <span className="text-xs font-bold text-[var(--gold)]">🔥{player.streak}</span>
+                    ) : (
+                      <span className="text-xs text-[var(--muted)]">—</span>
+                    )}
+                  </div>
 
-                {/* Delta */}
-                <div className="w-8 text-center">
-                  {player.change > 0 && <span className="text-xs font-bold text-[var(--emerald)]">▲{player.change}</span>}
-                  {player.change < 0 && <span className="text-xs font-bold text-[var(--crimson)]">▼{Math.abs(player.change)}</span>}
-                  {player.change === 0 && <span className="text-xs text-[var(--muted)]">—</span>}
-                </div>
+                  {/* Delta */}
+                  <div className="w-8 text-center">
+                    {player.change > 0 && <span className="text-xs font-bold text-[var(--emerald)]">▲{player.change}</span>}
+                    {player.change < 0 && <span className="text-xs font-bold text-[var(--crimson)]">▼{Math.abs(player.change)}</span>}
+                    {player.change === 0 && <span className="text-xs text-[var(--muted)]">—</span>}
+                  </div>
 
-                {/* Score */}
-                <div className="w-14 text-right">
-                  <AnimatedNumber value={player.score} className="font-black" duration={0.8 + i * 0.05} />
-                </div>
-              </motion.div>
+                  {/* Score */}
+                  <div className="w-14 text-right">
+                    <AnimatedNumber value={player.score} className="font-black" duration={0.8 + i * 0.05} />
+                  </div>
+                </motion.div>
+                {isMe && (
+                  <div className="px-5 py-2 bg-[var(--gold)]/5 border-t border-b border-[var(--gold)]/10 flex items-center gap-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[var(--emerald)]">▲</span>
+                      <span className="text-[var(--muted)]">Gaining on</span>
+                      <span className="font-bold">Marcus</span>
+                      <span className="text-[var(--muted)]">by 44 pts/day</span>
+                    </div>
+                    <div className="w-px h-4 bg-[var(--surface-border)]" />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[var(--crimson)]">▼</span>
+                      <span className="text-[var(--muted)]">Lisa</span>
+                      <span className="font-bold">gaining on you</span>
+                      <span className="text-[var(--muted)]">by 12 pts/day</span>
+                    </div>
+                  </div>
+                )}
+              </Fragment>
             );
           })}
         </div>

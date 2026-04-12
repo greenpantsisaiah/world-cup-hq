@@ -9,6 +9,7 @@ import { FutCard } from "@/components/player-fut-card";
 import { Sparkline } from "@/components/sparkline";
 import { MorningWhistleBanner } from "@/components/morning-whistle-banner";
 import { AnimatedNumber } from "@/components/animated-number";
+import { AchievementBadges } from "@/components/achievement-badge";
 import { WORLD_CUP_COUNTRIES } from "@/data/countries";
 import { PLAYER_POOL } from "@/data/players";
 
@@ -277,6 +278,22 @@ export default function PortfolioPage() {
         </div>
       </div>
 
+      {/* Rank threat — loss aversion */}
+      <motion.div
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex items-center gap-3 rounded-xl bg-[var(--crimson)]/5 border border-[var(--crimson)]/15 p-3"
+      >
+        <span className="text-lg">⚠️</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold text-[var(--crimson)]">Lisa is 35 pts behind you and gaining fast</p>
+          <p className="text-[10px] text-[var(--muted)]">She&apos;s had 3 correct predictions in a row. Submit your daily picks to stay ahead.</p>
+        </div>
+        <a href="/daily" className="shrink-0 px-3 py-1.5 bg-[var(--crimson)]/10 text-[var(--crimson)] text-xs font-bold rounded-lg hover:bg-[var(--crimson)]/20 transition-colors">
+          Play Now →
+        </a>
+      </motion.div>
+
       {/* ── Allegiance Banner ──────────────────────── */}
       {allegianceCountry && (
         <motion.div
@@ -417,6 +434,8 @@ export default function PortfolioPage() {
           trendColor="var(--gold)"
         />
       </div>
+
+      <AchievementBadges />
     </div>
   );
 }
