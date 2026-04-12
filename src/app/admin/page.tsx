@@ -67,21 +67,31 @@ function AdminContent() {
   const [banBoostEnabled, setBanBoostEnabled] = useState(true);
   const [asyncDraft, setAsyncDraft] = useState(false);
 
-  const [league, setLeague] = useState<LeagueRow | null>(null);
+  const [leagues, setLeagues] = useState<LeagueRow[]>([]);
+  const [selectedLeague, setSelectedLeague] = useState<LeagueRow | null>(null);
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [inviteCode, setInviteCode] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [loadingLeagues, setLoadingLeagues] = useState(true);
+
+  const league = selectedLeague;
+  const setLeague = (l: LeagueRow | null) => {
+    setSelectedLeague(l);
+    if (l) setLeagues((prev) => prev.some((p) => p.id === l.id) ? prev : [...prev, l]);
+  };
 
   useEffect(() => {
     if (user) {
+      setLoadingLeagues(true);
       const pendingCode = getPendingCode();
-      getMyLeagues().then(async (leagues) => {
-        if (leagues.length > 0) {
-          const l = leagues[0] as LeagueRow;
-          setLeague(l);
+      getMyLeagues().then(async (allLeagues) => {
+        const typed = allLeagues as LeagueRow[];
+        setLeagues(typed);
+        if (typed.length > 0) {
+          setSelectedLeague(typed[0]);
           clearPendingCode();
-          getLeagueMembers(l.id).then((m) => setMembers(m as MemberRow[]));
+          getLeagueMembers(typed[0].id).then((m) => setMembers(m as MemberRow[]));
         } else if (pendingCode) {
           // Auto-join with the pending invite code
           setJoining(true);
@@ -102,7 +112,10 @@ function AdminContent() {
             setJoining(false);
           }
         }
+        setLoadingLeagues(false);
       });
+    } else {
+      setLoadingLeagues(false);
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -177,11 +190,12 @@ function AdminContent() {
     { id: "competitive", icon: "🔥", name: "Competitive", desc: "Deep scoring, async drafts", best: "Hardcore fans" },
   ];
 
-  if (loading || joining) {
+  if (loading || joining || (user && loadingLeagues)) {
     return (
       <div className="text-center py-20 space-y-3">
         <div className="text-4xl animate-spin">⚽</div>
         {joining && <p className="text-[var(--muted)] text-sm">Joining league...</p>}
+        {loadingLeagues && !joining && <p className="text-[var(--muted)] text-sm">Loading your leagues...</p>}
       </div>
     );
   }
@@ -354,6 +368,35 @@ function AdminContent() {
                 Sign out
               </button>
             </div>
+
+            {/* League switcher — if multiple leagues */}
+            {leagues.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {leagues.map((l) => (
+                  <button
+                    key={l.id}
+                    onClick={() => {
+                      setSelectedLeague(l);
+                      getLeagueMembers(l.id).then((m) => setMembers(m as MemberRow[]));
+                    }}
+                    className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                      selectedLeague?.id === l.id
+                        ? "bg-[var(--gold)]/10 text-[var(--gold)] ring-1 ring-[var(--gold)]/30"
+                        : "bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    {l.name}
+                  </button>
+                ))}
+                <Link
+                  href="#create"
+                  onClick={(e) => { e.preventDefault(); setSelectedLeague(null); }}
+                  className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                >
+                  + New League
+                </Link>
+              </div>
+            )}
 
             {/* League card */}
             <div className="rounded-2xl bg-[var(--surface)] overflow-hidden">
