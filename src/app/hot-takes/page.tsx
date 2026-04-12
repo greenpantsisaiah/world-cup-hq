@@ -141,6 +141,12 @@ export default function HotTakesPage() {
               <div className="flex gap-2">
                 <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-[var(--muted)]">Cancel</button>
                 <button
+                  onClick={() => {
+                    if (newTake.trim().length >= 5) {
+                      setShowForm(false);
+                      setNewTake("");
+                    }
+                  }}
                   disabled={newTake.trim().length < 5}
                   className="px-4 py-2 bg-[var(--gold)] text-[var(--background)] font-bold rounded-lg text-sm disabled:opacity-50"
                 >

@@ -60,12 +60,12 @@ export async function joinLeagueByCode(inviteCode: string) {
   const { supabase, user } = await getAuthenticatedUser();
   const validated = inviteCodeSchema.parse(inviteCode.trim());
 
-  const { data: league } = await supabase
-    .from("leagues")
-    .select("id, max_participants")
-    .eq("invite_code", validated)
-    .single();
+  // Use security definer function to bypass RLS for invite code lookup
+  // (non-members can't SELECT from leagues directly)
+  const { data: lookupResult } = await supabase
+    .rpc("lookup_league_by_invite_code", { code: validated });
 
+  const league = lookupResult?.[0];
   if (!league) throw new Error("League not found");
 
   // Enforce max_participants

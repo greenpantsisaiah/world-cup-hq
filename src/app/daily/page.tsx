@@ -63,6 +63,19 @@ export default function DailyPage() {
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [showMilestone, setShowMilestone] = useState(false);
+  const [h2hLineup, setH2hLineup] = useState<Set<string>>(new Set(["Mbappé", "Rúben Dias", "Hakimi"]));
+
+  const toggleH2hPlayer = (name: string) => {
+    setH2hLineup((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else if (next.size < 3) {
+        next.add(name);
+      }
+      return next;
+    });
+  };
 
   const tabs: { id: DailyTab; label: string; mobileLabel: string; icon: string; badge?: string }[] = [
     { id: "picks", label: "Daily Picks", mobileLabel: "Picks", icon: "🎲" },
@@ -582,7 +595,13 @@ export default function DailyPage() {
                   className="fixed bottom-20 md:bottom-8 left-0 right-0 z-40 px-4"
                 >
                   <div className="max-w-5xl mx-auto">
-                    <button className="w-full py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/20 flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => {
+                        setPredictions({});
+                        setShowConfetti(true);
+                      }}
+                      className="w-full py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/20 flex items-center justify-center gap-3"
+                    >
                       <span>Submit {completedPredictions} Prediction{completedPredictions > 1 ? "s" : ""}</span>
                       <span className="text-sm opacity-70">⚡</span>
                     </button>
@@ -673,25 +692,30 @@ export default function DailyPage() {
                     { name: "Mitoma", rating: 82, country: "🇯🇵", playing: false },
                     { name: "Hakimi", rating: 86, country: "🇲🇦", playing: true },
                     { name: "Alaba", rating: 82, country: "🇦🇹", playing: false },
-                  ].map((player, i) => {
-                    const inLineup = i < 3;
+                  ].map((player) => {
+                    const inLineup = h2hLineup.has(player.name);
+                    const lineupIndex = [...h2hLineup].indexOf(player.name);
+                    const canAdd = !inLineup && h2hLineup.size < 3;
                     return (
                       <motion.button
                         key={player.name}
                         whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => toggleH2hPlayer(player.name)}
                         className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
                           inLineup
                             ? "bg-[var(--gold)]/10 ring-1 ring-[var(--gold)]/30"
-                            : "bg-[var(--surface-light)] opacity-60"
+                            : canAdd
+                              ? "bg-[var(--surface-light)] hover:bg-[var(--surface-border)] cursor-pointer"
+                              : "bg-[var(--surface-light)] opacity-40"
                         }`}
                       >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-colors ${
                           inLineup
                             ? "bg-[var(--gold)] text-[var(--background)]"
                             : "bg-[var(--surface-border)] text-[var(--muted)]"
                         }`}>
-                          {inLineup ? i + 1 : "—"}
+                          {inLineup ? lineupIndex + 1 : "—"}
                         </div>
                         <span className="text-lg">{player.country}</span>
                         <div className="flex-1">
