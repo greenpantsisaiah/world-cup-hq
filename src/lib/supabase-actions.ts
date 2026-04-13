@@ -304,6 +304,16 @@ export async function getHotTakes(leagueId: string) {
   return data ?? [];
 }
 
+export async function resolveHotTake(hotTakeId: string, status: "resolved_hit" | "resolved_miss") {
+  const tid = leagueIdSchema.parse(hotTakeId);
+  const { supabase } = await getAuthenticatedUser();
+  const { error } = await supabase
+    .from("hot_takes")
+    .update({ status })
+    .eq("id", tid);
+  if (error) throw new Error("Failed to resolve hot take");
+}
+
 // ─── H2H ─────────────────────────────────────────────────────
 
 export async function setH2HLineup(input: { matchup_id: string; lineup: string[] }) {
