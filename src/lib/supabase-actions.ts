@@ -262,6 +262,18 @@ export async function submitPrediction(leagueId: string, input: {
   if (error) throw new Error("Failed to submit prediction");
 }
 
+export async function getMyPredictions(leagueId: string, matchIds: string[]) {
+  const lid = leagueIdSchema.parse(leagueId);
+  const { supabase, user } = await getAuthenticatedUser();
+  const { data } = await supabase
+    .from("predictions")
+    .select("*")
+    .eq("league_id", lid)
+    .eq("user_id", user.id)
+    .in("match_id", matchIds);
+  return data ?? [];
+}
+
 // ─── Daily Picks ─────────────────────────────────────────────
 
 export async function submitDailyPick(leagueId: string, input: {
@@ -292,6 +304,20 @@ export async function getDailyPicks(leagueId: string, date: string) {
     .eq("league_id", lid)
     .eq("pick_date", validDate);
   return data ?? [];
+}
+
+export async function getMyDailyPick(leagueId: string, date: string) {
+  const lid = leagueIdSchema.parse(leagueId);
+  const validDate = dateSchema.parse(date);
+  const { supabase, user } = await getAuthenticatedUser();
+  const { data } = await supabase
+    .from("daily_picks")
+    .select("*")
+    .eq("league_id", lid)
+    .eq("user_id", user.id)
+    .eq("pick_date", validDate)
+    .maybeSingle();
+  return data;
 }
 
 // ─── Hot Takes ───────────────────────────────────────────────
