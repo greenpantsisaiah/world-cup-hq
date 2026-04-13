@@ -152,6 +152,35 @@ export async function updateDraftStatus(leagueId: string, status: string) {
 
 // ─── Draft Actions ───────────────────────────────────────────
 
+export async function setDraftOrder(leagueId: string, order: string[]) {
+  const lid = leagueIdSchema.parse(leagueId);
+  const { supabase, user } = await getAuthenticatedUser();
+
+  // Verify admin
+  const { data: league } = await supabase.from("leagues").select("admin_id").eq("id", lid).single();
+  if (!league || league.admin_id !== user.id) throw new Error("Only admin can set draft order");
+
+  const { error } = await supabase
+    .from("leagues")
+    .update({ draft_order: order, current_pick_number: 0 })
+    .eq("id", lid);
+  if (error) throw new Error("Failed to set draft order");
+}
+
+export async function revealAllegiances(leagueId: string) {
+  const lid = leagueIdSchema.parse(leagueId);
+  const { supabase, user } = await getAuthenticatedUser();
+
+  const { data: league } = await supabase.from("leagues").select("admin_id").eq("id", lid).single();
+  if (!league || league.admin_id !== user.id) throw new Error("Only admin can reveal allegiances");
+
+  const { error } = await supabase
+    .from("leagues")
+    .update({ draft_status: "country_draft", current_pick_number: 0 })
+    .eq("id", lid);
+  if (error) throw new Error("Failed to advance to country draft");
+}
+
 export async function setAllegiance(leagueId: string, input: { country_code: string }) {
   const lid = leagueIdSchema.parse(leagueId);
   const { supabase, user } = await getAuthenticatedUser();
@@ -191,6 +220,12 @@ export async function makeDraftPick(leagueId: string, input: {
     .from("draft_picks")
     .insert({ league_id: lid, user_id: user.id, ...validated });
   if (error) throw new Error("Failed to make draft pick");
+
+  // Increment the pick counter on the league
+  await supabase
+    .from("leagues")
+    .update({ current_pick_number: validated.pick_number + 1 })
+    .eq("id", lid);
 }
 
 export async function getDraftPicks(leagueId: string) {

@@ -1,674 +1,399 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/auth-provider";
+import { useLeague } from "@/components/league-provider";
 import { CountryCard } from "@/components/country-card";
 import { FutCard } from "@/components/player-fut-card";
-import { AnimatedNumber } from "@/components/animated-number";
-import { Sparkline } from "@/components/sparkline";
+import {
+  setAllegiance,
+  getAllegiances,
+  makeDraftPick,
+  getDraftPicks,
+  updateDraftStatus,
+  setDraftOrder,
+  revealAllegiances,
+} from "@/lib/supabase-actions";
 import { WORLD_CUP_COUNTRIES } from "@/data/countries";
 import { PLAYER_POOL } from "@/data/players";
+import {
+  getCurrentDrafter,
+  isMyTurn,
+  getCurrentRound,
+  getPickInRound,
+  isDraftPhaseComplete,
+  generateRandomDraftOrder,
+} from "@/lib/draft-utils";
+import Link from "next/link";
 
-// ─── Demo Config ─────────────────────────────────────────────
-const DRAFT_DATE = new Date("2026-06-08T19:00:00");
-const DRAFT_POSITION_REVEAL = new Date(DRAFT_DATE.getTime() - 3 * 86400000);
-const LEAGUE_STATUS: "pre_draft" | "draft_live" | "complete" = "complete";
+interface DraftPickRow {
+  id: string;
+  user_id: string;
+  pick_type: string;
+  country_code: string | null;
+  player_id: string | null;
+  round: number;
+  pick_number: number;
+}
 
-// Isaiah's portfolio (post-draft)
-const MY_COUNTRIES = ["AR", "SA", "QA"];
-const MY_PLAYERS = ["mbappe", "r-dias", "mitoma", "alaba", "hakimi"];
-const MY_ALLEGIANCE = "AR";
-const MY_DRAFT_POSITION = 1;
+interface AllegianceRow {
+  user_id: string;
+  country_code: string;
+}
 
-// All participants
-const PARTICIPANTS = [
-  "Isaiah", "Sarah", "Marcus", "Lisa", "Phil", "Dave", "Emma", "Jake",
-  "Alex", "Mia", "Chris", "Nina", "Tom", "Olivia", "Ryan", "Zoe",
-];
-
-// Draft board
-const DRAFT_BOARD = [
-  { round: 1, picks: [
-    { user: "Isaiah", pick: "AR" }, { user: "Sarah", pick: "FR" }, { user: "Marcus", pick: "BR" },
-    { user: "Lisa", pick: "ES" }, { user: "Phil", pick: "GB-ENG" }, { user: "Dave", pick: "DE" },
-    { user: "Emma", pick: "PT" }, { user: "Jake", pick: "NL" }, { user: "Alex", pick: "BE" },
-    { user: "Mia", pick: "IT" }, { user: "Chris", pick: "HR" }, { user: "Nina", pick: "UY" },
-    { user: "Tom", pick: "US" }, { user: "Olivia", pick: "CO" }, { user: "Ryan", pick: "JP" },
-    { user: "Zoe", pick: "DK" },
-  ]},
-  { round: 2, picks: [
-    { user: "Zoe", pick: "MA" }, { user: "Ryan", pick: "MX" }, { user: "Olivia", pick: "KR" },
-    { user: "Tom", pick: "SN" }, { user: "Nina", pick: "AU" }, { user: "Chris", pick: "IR" },
-    { user: "Mia", pick: "EG" }, { user: "Alex", pick: "RS" }, { user: "Jake", pick: "EC" },
-    { user: "Emma", pick: "CA" }, { user: "Dave", pick: "AT" }, { user: "Phil", pick: "NG" },
-    { user: "Lisa", pick: "CL" }, { user: "Marcus", pick: "PE" }, { user: "Sarah", pick: "CR" },
-    { user: "Isaiah", pick: "SA" },
-  ]},
-];
-
-// Draft grades
-const DRAFT_GRADES: Record<string, { grade: string; color: string; summary: string }> = {
-  Isaiah: { grade: "A-", color: "var(--emerald)", summary: "Elite allegiance-draft alignment. Mbappé at #1 overall is chef's kiss. Saudi Arabia and Qatar in rounds 2-3 will need miracles, but Mbappé could carry this entire portfolio on his back." },
-  Sarah: { grade: "A", color: "var(--emerald)", summary: "France + Costa Rica + Cameroon is a masterclass. Vinícius Jr. and Luis Díaz give her firepower. The only question is whether Costa Rica scores enough to matter." },
-  Marcus: { grade: "B+", color: "var(--gold)", summary: "Brazil is a premium pick. Peru and Bolivia are the dead weight. Bellingham at 3rd overall is a steal though — could be tournament MVP." },
-  Lisa: { grade: "A-", color: "var(--emerald)", summary: "Spain is a contender. Chile is solid depth. Bahrain is... there. But Messi falling to her at pick 4? That's a heist." },
-  Phil: { grade: "B", color: "var(--gold)", summary: "England + Nigeria + Paraguay. Middle of the road. Rodri anchoring the midfield is smart, but he needs his countries to stay alive." },
-  Dave: { grade: "C+", color: "var(--crimson)", summary: "Germany, Austria, and China. Two of those teams share a language. None of them share a path to the final. Salah at 6th overall saves this from a D." },
-  Emma: { grade: "B+", color: "var(--gold)", summary: "Portugal + Canada + Indonesia. Ronaldo's farewell tour could be magic. Kane and Núñez give her two proven finishers." },
-  Jake: { grade: "B-", color: "var(--gold)", summary: "Netherlands + Ecuador + Bolivia. De Bruyne is class, but he's drafting from the \"countries that almost qualified\" section." },
-  Alex: { grade: "B", color: "var(--gold)", summary: "Belgium + Serbia — aging squad meets dark horse. Saka and Modrić are great individual picks though." },
-  Mia: { grade: "B", color: "var(--gold)", summary: "Italy + Egypt — Salah-Yamal combo could be electric. Italy's defense might surprise people." },
-  Chris: { grade: "B-", color: "var(--gold)", summary: "Croatia + Iran — living and dying by Modrić and Son. If South Korea makes a run, Chris looks like a genius." },
-  Nina: { grade: "C+", color: "var(--crimson)", summary: "Uruguay + Australia — solid but unspectacular. Pedri and Álvarez are nice, but the ceiling is limited." },
-  Tom: { grade: "B", color: "var(--gold)", summary: "USA + Senegal — the contrarian king. If the US makes a run as hosts, Tom's portfolio could explode. Pulisic is his horse." },
-  Olivia: { grade: "B-", color: "var(--gold)", summary: "Colombia + South Korea — fun but risky. Bernardo Silva and Hakimi are gems, but she needs upsets." },
-  Ryan: { grade: "C", color: "var(--crimson)", summary: "Japan + Mexico + Cameroon — three teams that could all go out in the group stage. Or all three could pull an upset. Chaos portfolio." },
-  Zoe: { grade: "C+", color: "var(--crimson)", summary: "Denmark + Morocco + Costa Rica — the dark horse trifecta. If even one of these teams goes on a run, Zoe's laughing. If not, she's in the cellar." },
-};
-
-// AI commentary for tier list
-const AI_TIER_QUIPS: Record<string, string[]> = {
-  must_have: [
-    "You and 12 other people want Argentina. Good luck.",
-    "France? Bold. Their talent pool is deeper than your league's knowledge of soccer.",
-    "Brazil's vibes are immaculate. Their defense less so.",
-  ],
-  want: [
-    "Smart. Not flashy, but smart. Like a Volvo.",
-    "This is where the real value lives. The boring middle.",
-  ],
-  fine: [
-    "Embrace the chaos. These teams are unpredictable in the best way.",
-    "Not your first choice but you won't cry about it either.",
-  ],
-  please_no: [
-    "We don't judge. But the algorithm does.",
-    "Someone has to draft these teams. Just not you, apparently.",
-  ],
-};
-
-const DRAFT_HIGHLIGHTS = [
-  { icon: "🎯", title: "Best Value Pick", desc: "Sarah got France at #2 — a top-3 team at a top-3 pick", player: "Sarah", accent: "from-[var(--gold)]/20 to-transparent" },
-  { icon: "😱", title: "Biggest Steal", desc: "Tom grabbed USA at #13 — the host nation, overlooked by 12 people", player: "Tom", accent: "from-[var(--emerald)]/20 to-transparent" },
-  { icon: "🎰", title: "Boldest Pick", desc: "Zoe went Denmark at #16 — zero people had them in their Must Have tier", player: "Zoe", accent: "from-[var(--electric)]/20 to-transparent" },
-  { icon: "💀", title: "Most Painful Pick", desc: "Isaiah's round 3: Saudi Arabia and Qatar. Two teams, zero combined World Cup wins. Ever.", player: "Isaiah", accent: "from-[var(--crimson)]/20 to-transparent" },
-  { icon: "🔥", title: "Best Player Pick", desc: "Isaiah grabbed Mbappe #1 overall. 4 goals, 1 assist, 2 MOTM so far.", player: "Isaiah", accent: "from-[var(--gold)]/20 to-transparent" },
-];
-
-type DraftTab = "war-room" | "grades" | "compare" | "my-team" | "draft-board";
+type DraftTab = "live" | "my-team" | "board";
 
 export default function DraftPage() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { league, leagueId, members, isAdmin, refreshLeague } = useLeague();
 
-  // War Room state
-  const [tierList, setTierList] = useState<Record<string, string[]>>({
-    must_have: ["AR", "FR", "BR"],
-    want: ["ES", "DE", "GB-ENG", "PT"],
-    fine: ["NL", "BE", "IT", "HR", "UY", "US"],
-    please_no: [],
-  });
-  const [editingTier, setEditingTier] = useState<string | null>(null);
-  const [aiQuip, setAiQuip] = useState<string | null>(null);
+  const [tab, setTab] = useState<DraftTab>("live");
+  const [picks, setPicks] = useState<DraftPickRow[]>([]);
+  const [allegiances, setAllegiances] = useState<AllegianceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Compare state
-  const [compareA, setCompareA] = useState("Isaiah");
-  const [compareB, setCompareB] = useState("Sarah");
+  const draftStatus = league?.draft_status || "pre_draft";
+  const leagueAny = league as unknown as Record<string, unknown> | null;
+  const draftOrder = (leagueAny?.draft_order as string[]) || [];
+  const currentPickNumber = (leagueAny?.current_pick_number as number) || 0;
+  const countriesPerPerson = league?.countries_per_person || 3;
+  const playersPerPerson = league?.players_per_person || 5;
 
-  // Tab
-  const [viewTab, setViewTab] = useState<DraftTab>(
-    LEAGUE_STATUS === "complete" ? "grades" : "war-room"
-  );
-
-  const myCountries = useMemo(
-    () => MY_COUNTRIES.map((code) => WORLD_CUP_COUNTRIES.find((c) => c.code === code)).filter(Boolean),
-    []
-  );
-  const myPlayers = useMemo(
-    () => MY_PLAYERS.map((id) => PLAYER_POOL.find((p) => p.id === id)).filter(Boolean),
-    []
-  );
-  const allegianceCountry = WORLD_CUP_COUNTRIES.find((c) => c.code === MY_ALLEGIANCE);
-
-  const allTiered = useMemo(() => {
-    const used = new Set(Object.values(tierList).flat());
-    return used;
-  }, [tierList]);
-
-  const untieredCountries = useMemo(
-    () => WORLD_CUP_COUNTRIES.filter((c) => !allTiered.has(c.code) && !c.code.startsWith("TBD")),
-    [allTiered]
-  );
-
-  const addToTier = useCallback((tier: string, code: string) => {
-    // Remove from all tiers first
-    const newTiers = { ...tierList };
-    for (const key of Object.keys(newTiers)) {
-      newTiers[key] = newTiers[key].filter((c) => c !== code);
+  const loadDraftData = useCallback(async () => {
+    if (!leagueId) return;
+    setLoading(true);
+    try {
+      const [picksData, allegianceData] = await Promise.all([
+        getDraftPicks(leagueId),
+        getAllegiances(leagueId),
+      ]);
+      setPicks(picksData as DraftPickRow[]);
+      setAllegiances(allegianceData as AllegianceRow[]);
+    } catch {
+      setError("Failed to load draft data");
     }
-    newTiers[tier] = [...newTiers[tier], code];
-    setTierList(newTiers);
+    setLoading(false);
+  }, [leagueId]);
 
-    // Show AI quip
-    const quips = AI_TIER_QUIPS[tier];
-    if (quips) {
-      setAiQuip(quips[Math.floor(Math.random() * quips.length)]);
-      setTimeout(() => setAiQuip(null), 4000);
-    }
-  }, [tierList]);
+  useEffect(() => { loadDraftData(); }, [loadDraftData]);
 
-  const getPlayerCountries = (name: string) => {
-    return DRAFT_BOARD.flatMap((r) => r.picks)
-      .filter((p) => p.user === name)
-      .map((p) => WORLD_CUP_COUNTRIES.find((c) => c.code === p.pick))
-      .filter(Boolean);
+  // Poll during active draft
+  useEffect(() => {
+    if (!["country_draft", "player_draft"].includes(draftStatus)) return;
+    const interval = setInterval(() => { loadDraftData(); refreshLeague(); }, 3000);
+    return () => clearInterval(interval);
+  }, [draftStatus, loadDraftData, refreshLeague]);
+
+  // Derived data
+  const myAllegiance = allegiances.find((a) => a.user_id === user?.id);
+  const allAllegiancesSubmitted = allegiances.length >= members.length && members.length > 0;
+  const countryPicks = picks.filter((p) => p.pick_type === "country");
+  const playerPicks = picks.filter((p) => p.pick_type === "player");
+  const draftedCountryCodes = new Set(countryPicks.map((p) => p.country_code));
+  const draftedPlayerIds = new Set(playerPicks.map((p) => p.player_id));
+  const myCountries = countryPicks.filter((p) => p.user_id === user?.id).map((p) => WORLD_CUP_COUNTRIES.find((c) => c.code === p.country_code)).filter(Boolean);
+  const myPlayers = playerPicks.filter((p) => p.user_id === user?.id).map((p) => PLAYER_POOL.find((pl) => pl.id === p.player_id)).filter(Boolean);
+
+  const currentDrafterId = getCurrentDrafter(draftOrder, currentPickNumber);
+  const currentDrafter = members.find((m) => m.id === currentDrafterId);
+  const myTurn = user ? isMyTurn(user.id, draftOrder, currentPickNumber) : false;
+  const currentRound = getCurrentRound(currentPickNumber, draftOrder.length);
+  const pickInRound = getPickInRound(currentPickNumber, draftOrder.length);
+  const activeRounds = draftStatus === "country_draft" ? countriesPerPerson : playersPerPerson;
+  const phaseComplete = isDraftPhaseComplete(currentPickNumber, draftOrder.length, activeRounds);
+
+  const availableCountries = useMemo(() =>
+    WORLD_CUP_COUNTRIES
+      .filter((c) => !c.code.startsWith("TBD") && !draftedCountryCodes.has(c.code))
+      .filter((c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a, b) => a.fifaRanking - b.fifaRanking),
+    [draftedCountryCodes, searchQuery]
+  );
+
+  const availablePlayers = useMemo(() =>
+    PLAYER_POOL
+      .filter((p) => !draftedPlayerIds.has(p.id))
+      .filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.country.toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a, b) => b.rating - a.rating),
+    [draftedPlayerIds, searchQuery]
+  );
+
+  const getMemberName = (userId: string) => members.find((m) => m.id === userId)?.name || "Unknown";
+
+  // Handlers
+  const handleAllegiance = async (code: string) => {
+    if (!leagueId) return;
+    setSubmitting(true); setError(null);
+    try { await setAllegiance(leagueId, { country_code: code }); await loadDraftData(); }
+    catch { setError("Failed to set allegiance"); }
+    setSubmitting(false);
   };
 
-  if (!user) {
+  const handlePick = async (type: "country" | "player", id: string) => {
+    if (!leagueId || !myTurn) return;
+    setSubmitting(true); setError(null);
+    try {
+      await makeDraftPick(leagueId, {
+        pick_type: type,
+        ...(type === "country" ? { country_code: id } : { player_id: id }),
+        round: currentRound,
+        pick_number: currentPickNumber,
+      });
+      await loadDraftData();
+      await refreshLeague();
+    } catch { setError("Failed to make pick"); }
+    setSubmitting(false);
+  };
+
+  const handleRandomizeOrder = async () => {
+    if (!leagueId || !isAdmin) return;
+    try { await setDraftOrder(leagueId, generateRandomDraftOrder(members.map((m) => m.id))); await refreshLeague(); }
+    catch { setError("Failed to set draft order"); }
+  };
+
+  const handleAdvance = async (status: string) => {
+    if (!leagueId || !isAdmin) return;
+    try {
+      if (status === "country_draft") await revealAllegiances(leagueId);
+      else await updateDraftStatus(leagueId, status);
+      await refreshLeague();
+    } catch { setError("Failed to advance draft"); }
+  };
+
+  if (!leagueId) {
     return (
       <div className="text-center py-20 space-y-4">
         <div className="text-6xl">📋</div>
         <h1 className="text-3xl font-black">The Draft Room</h1>
-        <p className="text-[var(--muted)]">Sign in to view your draft.</p>
+        <p className="text-[var(--muted)]">Join a league to start drafting.</p>
+        <Link href="/admin" className="inline-block px-6 py-3 bg-[var(--gold)] text-[var(--background)] font-bold rounded-xl">Join a League →</Link>
       </div>
     );
   }
 
-  const tabs: { id: DraftTab; label: string; mobileLabel: string; icon: string }[] = LEAGUE_STATUS === "complete"
-    ? [
-        { id: "grades", label: "Draft Grades", mobileLabel: "Grades", icon: "📊" },
-        { id: "compare", label: "Compare", mobileLabel: "VS", icon: "⚔️" },
-        { id: "war-room", label: "Big Board", mobileLabel: "Board", icon: "🗺️" },
-        { id: "my-team", label: "My Team", mobileLabel: "Team", icon: "⚽" },
-        { id: "draft-board", label: "Draft Board", mobileLabel: "Draft", icon: "📋" },
-      ]
-    : [
-        { id: "war-room", label: "War Room", mobileLabel: "Plan", icon: "🗺️" },
-        { id: "my-team", label: "My Team", mobileLabel: "Team", icon: "⚽" },
-      ];
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-black">
-            <span className="text-shimmer">The Draft Room</span>
-          </h1>
+          <h1 className="text-3xl font-black"><span className="text-shimmer">The Draft Room</span></h1>
           <p className="text-[var(--muted)] text-sm mt-1">
-            {LEAGUE_STATUS === "complete"
-              ? "Draft complete — review grades and compare portfolios"
-              : "Plan your strategy for draft night"}
+            {draftStatus === "pre_draft" && "Waiting for draft night"}
+            {draftStatus === "allegiance" && "Pick your heart team — blind picks!"}
+            {draftStatus === "country_draft" && "Snake draft — pick your countries"}
+            {draftStatus === "player_draft" && "Snake draft — build your squad"}
+            {draftStatus === "complete" && "Draft complete!"}
           </p>
         </div>
-        {LEAGUE_STATUS === "complete" && (
-          <div className="text-right">
-            <div className="text-2xl font-black" style={{ color: DRAFT_GRADES.Isaiah?.color }}>
-              {DRAFT_GRADES.Isaiah?.grade}
-            </div>
-            <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Your Grade</div>
-          </div>
-        )}
+        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+          draftStatus === "complete" ? "bg-[var(--emerald)]/10 text-[var(--emerald)]"
+          : ["country_draft", "player_draft"].includes(draftStatus) ? "bg-[var(--gold)]/10 text-[var(--gold)]"
+          : "bg-[var(--surface-light)] text-[var(--muted)]"
+        }`}>{draftStatus.replace("_", " ")}</span>
       </div>
 
+      {error && <div className="p-3 rounded-xl bg-[var(--crimson)]/10 text-[var(--crimson)] text-sm">{error}</div>}
+
       {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--surface)] rounded-lg p-1 overflow-x-auto">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setViewTab(tab.id)}
-            className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-semibold transition-all whitespace-nowrap ${
-              viewTab === tab.id
-                ? "bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/20"
-                : "text-[var(--muted)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            <span>{tab.icon}</span>
-            <span className="md:hidden text-[10px]">{tab.mobileLabel}</span>
-            <span className="hidden md:inline">{tab.label}</span>
-          </button>
+      <div className="flex gap-1 bg-[var(--surface)] rounded-lg p-1">
+        {([
+          { id: "live" as DraftTab, label: "Draft", icon: "📋" },
+          { id: "my-team" as DraftTab, label: "My Team", icon: "⚽" },
+          { id: "board" as DraftTab, label: "History", icon: "📊" },
+        ]).map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-semibold transition-all ${
+            tab === t.id ? "bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/20" : "text-[var(--muted)]"
+          }`}><span>{t.icon}</span> {t.label}</button>
         ))}
       </div>
 
-      <AnimatePresence mode="wait">
-        {/* ═══════════════════════════════════════════ */}
-        {/* DRAFT GRADES                               */}
-        {/* ═══════════════════════════════════════════ */}
-        {viewTab === "grades" && (
-          <motion.div
-            key="grades"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-3"
-          >
-            {PARTICIPANTS.map((name, i) => {
-              const grade = DRAFT_GRADES[name];
-              const countries = getPlayerCountries(name);
-              const isMe = name === "Isaiah";
-
-              return (
-                <motion.div
-                  key={name}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className={`rounded-2xl overflow-hidden ${isMe ? "ring-2 ring-[var(--gold)]/30" : ""}`}
-                >
-                  <div className={`bg-[var(--surface)] p-4 ${isMe ? "bg-[var(--gold)]/5" : ""}`}>
-                    <div className="flex items-start gap-4">
-                      {/* Grade badge */}
-                      <div
-                        className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-black shrink-0"
-                        style={{
-                          backgroundColor: `${grade.color}15`,
-                          color: grade.color,
-                          border: `2px solid ${grade.color}30`,
-                        }}
-                      >
-                        {grade.grade}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-black">{name}</span>
-                          {isMe && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--gold)]/10 text-[var(--gold)] font-bold">
-                              YOU
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Country flags */}
-                        <div className="flex gap-1.5 mb-2">
-                          {countries.map((c) => (
-                            <span key={c?.code} className="text-lg" title={c?.name}>
-                              {c?.flag}
-                            </span>
-                          ))}
-                        </div>
-
-                        {/* AI commentary */}
-                        <p className="text-sm text-[var(--muted)] leading-relaxed">
-                          {grade.summary}
-                        </p>
-                      </div>
+      {loading ? <div className="text-center py-8"><div className="text-2xl animate-spin">⚽</div></div> : (
+        <AnimatePresence mode="wait">
+          {tab === "live" && (
+            <motion.div key="live" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              {/* PRE-DRAFT */}
+              {draftStatus === "pre_draft" && (
+                <div className="rounded-2xl bg-[var(--surface)] p-8 text-center space-y-4">
+                  <div className="text-5xl">🌙</div>
+                  <h2 className="text-2xl font-black">Draft Night is Coming</h2>
+                  <p className="text-[var(--muted)]">{members.length} players in the league</p>
+                  {isAdmin ? (
+                    <div className="space-y-3 pt-4">
+                      <button onClick={handleRandomizeOrder} className="w-full py-3 bg-[var(--surface-light)] rounded-xl font-bold hover:bg-[var(--surface-border)]">🎲 Randomize Draft Order</button>
+                      {draftOrder.length > 0 && (
+                        <>
+                          <div className="text-xs text-[var(--muted)]">Order: {draftOrder.map((id, i) => `${i + 1}. ${getMemberName(id)}`).join(", ")}</div>
+                          <button onClick={() => handleAdvance("allegiance")} className="w-full py-3 bg-[var(--gold)] text-[var(--background)] rounded-xl font-black hover:bg-[var(--gold-dim)]">Start Allegiance Picks →</button>
+                        </>
+                      )}
                     </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        )}
-
-        {/* ═══════════════════════════════════════════ */}
-        {/* HEAD-TO-HEAD COMPARE                       */}
-        {/* ═══════════════════════════════════════════ */}
-        {viewTab === "compare" && (
-          <motion.div
-            key="compare"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-6"
-          >
-            {/* Selector */}
-            <div className="flex items-center gap-4 justify-center">
-              <select
-                value={compareA}
-                onChange={(e) => setCompareA(e.target.value)}
-                className="px-4 py-3 bg-[var(--surface)] border border-[var(--gold)]/30 rounded-xl font-bold text-center focus:outline-none"
-              >
-                {PARTICIPANTS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <div className="w-12 h-12 rounded-full bg-[var(--gold)] flex items-center justify-center text-[var(--background)] font-black shadow-lg shadow-[var(--gold)]/30">
-                VS
-              </div>
-              <select
-                value={compareB}
-                onChange={(e) => setCompareB(e.target.value)}
-                className="px-4 py-3 bg-[var(--surface)] border border-[var(--electric)]/30 rounded-xl font-bold text-center focus:outline-none"
-              >
-                {PARTICIPANTS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-
-            {/* Comparison cards */}
-            <div className="grid grid-cols-2 gap-4">
-              {[compareA, compareB].map((name, idx) => {
-                const grade = DRAFT_GRADES[name];
-                const countries = getPlayerCountries(name);
-                const color = idx === 0 ? "var(--gold)" : "var(--electric)";
-
-                return (
-                  <motion.div
-                    key={name}
-                    initial={{ opacity: 0, x: idx === 0 ? -20 : 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="rounded-2xl bg-[var(--surface)] p-5 space-y-4"
-                    style={{ borderTop: `3px solid ${color}` }}
-                  >
-                    {/* Name + Grade */}
-                    <div className="text-center">
-                      <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl font-black mb-2"
-                        style={{ backgroundColor: `${grade.color}15`, color: grade.color }}>
-                        {grade.grade}
-                      </div>
-                      <div className="font-black text-lg">{name}</div>
-                    </div>
-
-                    {/* Countries */}
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-2">Countries</div>
-                      <div className="space-y-1.5">
-                        {countries.map((c) => (
-                          <div key={c?.code} className="flex items-center gap-2 text-sm">
-                            <span className="text-lg">{c?.flag}</span>
-                            <span className="font-semibold">{c?.name}</span>
-                            <span className="text-[10px] text-[var(--muted)] ml-auto">
-                              #{c?.fifaRanking}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* AI take */}
-                    <div className="p-3 rounded-xl bg-[var(--surface-light)] text-xs text-[var(--muted)] leading-relaxed">
-                      🤖 {grade.summary.split(".")[0]}.
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Stat comparison bars */}
-            <div className="card-glow rounded-2xl bg-[var(--surface)] p-5 space-y-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-                Portfolio Comparison
-              </div>
-              {[
-                { label: "Avg FIFA Ranking", a: 52, b: 35, lower_is_better: true },
-                { label: "Elite Tier Teams", a: 1, b: 1, lower_is_better: false },
-                { label: "Player Avg Rating", a: 86, b: 87, lower_is_better: false },
-                { label: "Upside Potential", a: 8.5, b: 7.2, lower_is_better: false },
-              ].map((stat) => {
-                const aCountries = getPlayerCountries(compareA);
-                const bCountries = getPlayerCountries(compareB);
-                const maxVal = Math.max(stat.a, stat.b) || 1;
-                const aWins = stat.lower_is_better ? stat.a < stat.b : stat.a > stat.b;
-                const bWins = !aWins && stat.a !== stat.b;
-
-                return (
-                  <div key={stat.label} className="space-y-1.5">
-                    <div className="text-xs text-[var(--muted)] text-center">{stat.label}</div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-black w-10 text-right ${aWins ? "text-[var(--gold)]" : "text-[var(--muted)]"}`}>
-                        {stat.a}
-                      </span>
-                      <div className="flex-1 flex h-4 gap-1">
-                        <motion.div
-                          className="h-full rounded-l-full bg-[var(--gold)]"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(stat.a / maxVal) * 100}%` }}
-                          transition={{ duration: 0.8 }}
-                          style={{ marginLeft: "auto" }}
-                        />
-                        <motion.div
-                          className="h-full rounded-r-full bg-[var(--electric)]"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(stat.b / maxVal) * 100}%` }}
-                          transition={{ duration: 0.8 }}
-                        />
-                      </div>
-                      <span className={`text-sm font-black w-10 ${bWins ? "text-[var(--electric)]" : "text-[var(--muted)]"}`}>
-                        {stat.b}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-
-        {/* ═══════════════════════════════════════════ */}
-        {/* WAR ROOM / BIG BOARD                       */}
-        {/* ═══════════════════════════════════════════ */}
-        {viewTab === "war-room" && (
-          <motion.div
-            key="war-room"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-6"
-          >
-            {/* AI Commentary */}
-            <AnimatePresence>
-              {aiQuip && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex items-start gap-3 p-4 rounded-2xl bg-[var(--electric)]/10 border border-[var(--electric)]/20"
-                >
-                  <span className="text-xl">🤖</span>
-                  <p className="text-sm">{aiQuip}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Tier lists */}
-            {[
-              { key: "must_have", label: "Must Have", emoji: "🔥", color: "var(--gold)", borderColor: "border-[var(--gold)]/30" },
-              { key: "want", label: "Want", emoji: "👍", color: "var(--emerald)", borderColor: "border-[var(--emerald)]/30" },
-              { key: "fine", label: "Fine With", emoji: "🤷", color: "var(--electric)", borderColor: "border-[var(--electric)]/30" },
-              { key: "please_no", label: "Please No", emoji: "💀", color: "var(--crimson)", borderColor: "border-[var(--crimson)]/30" },
-            ].map((tier) => (
-              <div key={tier.key} className={`rounded-2xl bg-[var(--surface)] overflow-hidden border ${tier.borderColor}`}>
-                <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: `2px solid ${tier.color}30` }}>
-                  <span className="text-lg">{tier.emoji}</span>
-                  <span className="font-black text-sm" style={{ color: tier.color }}>{tier.label}</span>
-                  <span className="text-[10px] text-[var(--muted)] ml-auto">
-                    {tierList[tier.key]?.length || 0} teams
-                  </span>
+                  ) : <p className="text-sm text-[var(--muted)]">Waiting for admin to start the draft...</p>}
                 </div>
-                <div className="p-3">
-                  {(tierList[tier.key]?.length || 0) > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {tierList[tier.key].map((code) => {
-                        const country = WORLD_CUP_COUNTRIES.find((c) => c.code === code);
-                        if (!country) return null;
-                        return (
-                          <motion.button
-                            key={code}
-                            layout
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              // Remove from this tier
-                              setTierList((prev) => ({
-                                ...prev,
-                                [tier.key]: prev[tier.key].filter((c) => c !== code),
-                              }));
-                            }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--surface-light)] hover:bg-[var(--surface-border)] transition-colors group"
-                          >
-                            <span className="text-xl">{country.flag}</span>
-                            <span className="text-xs font-bold">{country.name}</span>
-                            <span className="text-[10px] text-[var(--muted)] group-hover:text-[var(--crimson)] transition-colors">✕</span>
-                          </motion.button>
-                        );
-                      })}
+              )}
+
+              {/* ALLEGIANCE */}
+              {draftStatus === "allegiance" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl bg-[var(--surface)] p-6 text-center space-y-3">
+                    <div className="text-4xl">❤️</div>
+                    <h2 className="text-xl font-black">Allegiance Pick</h2>
+                    <p className="text-sm text-[var(--muted)]">Pick your heart team. Blind picks — revealed all at once.</p>
+                    <div className="text-xs text-[var(--muted)]">{allegiances.length} of {members.length} submitted</div>
+                  </div>
+                  {myAllegiance ? (
+                    <div className="rounded-2xl bg-[var(--gold)]/5 border border-[var(--gold)]/20 p-6 text-center space-y-2">
+                      <div className="text-4xl">{WORLD_CUP_COUNTRIES.find((c) => c.code === myAllegiance.country_code)?.flag}</div>
+                      <div className="font-black">{WORLD_CUP_COUNTRIES.find((c) => c.code === myAllegiance.country_code)?.name}</div>
+                      <p className="text-xs text-[var(--muted)]">Locked in. Waiting for others...</p>
                     </div>
                   ) : (
-                    <div className="text-xs text-[var(--muted)] py-2 text-center">
-                      Tap a country below to add it here
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                      {WORLD_CUP_COUNTRIES.filter((c) => !c.code.startsWith("TBD")).map((c) => (
+                        <motion.button key={c.code} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                          onClick={() => handleAllegiance(c.code)} disabled={submitting}
+                          className="rounded-2xl p-3 text-center bg-[var(--surface)] hover:bg-[var(--surface-light)] disabled:opacity-50">
+                          <div className="text-3xl mb-1">{c.flag}</div>
+                          <div className="text-[10px] font-bold">{c.name}</div>
+                        </motion.button>
+                      ))}
                     </div>
                   )}
+                  {isAdmin && allAllegiancesSubmitted && (
+                    <button onClick={() => handleAdvance("country_draft")} className="w-full py-3 bg-[var(--gold)] text-[var(--background)] rounded-xl font-black">Reveal & Start Country Draft →</button>
+                  )}
                 </div>
-              </div>
-            ))}
+              )}
 
-            {/* Untiered countries pool */}
-            {untieredCountries.length > 0 && (
-              <div className="space-y-3">
-                <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-                  Available — tap to rank ({untieredCountries.length} remaining)
-                </div>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                  {untieredCountries.map((country) => (
-                    <div key={country.code} className="relative group">
-                      <motion.button
-                        whileHover={{ scale: 1.05, y: -2 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => addToTier("want", country.code)}
-                        className="w-full rounded-xl p-3 bg-[var(--surface)] hover:bg-[var(--surface-light)] transition-colors text-center"
-                      >
-                        <div className="text-2xl mb-1">{country.flag}</div>
-                        <div className="text-[10px] font-bold truncate">{country.name}</div>
-                        <div className="text-[9px] text-[var(--muted)]">#{country.fifaRanking}</div>
-                      </motion.button>
-                      {/* Quick-add buttons on hover */}
-                      <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
-                        <button onClick={() => addToTier("must_have", country.code)} className="w-5 h-5 rounded-full bg-[var(--gold)] text-[8px] font-bold text-[var(--background)]" title="Must Have">🔥</button>
-                        <button onClick={() => addToTier("please_no", country.code)} className="w-5 h-5 rounded-full bg-[var(--crimson)] text-[8px] font-bold text-white" title="Please No">💀</button>
-                      </div>
+              {/* COUNTRY / PLAYER DRAFT */}
+              {["country_draft", "player_draft"].includes(draftStatus) && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl bg-[var(--surface)] p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${myTurn ? "bg-[var(--emerald)] pulse-live" : "bg-[var(--muted)]"}`} />
+                      <span className="font-bold">{myTurn ? <span className="text-[var(--emerald)]">Your pick!</span> : <>Waiting for <span className="text-[var(--gold)]">{currentDrafter?.name}</span></>}</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {/* ═══════════════════════════════════════════ */}
-        {/* MY TEAM                                    */}
-        {/* ═══════════════════════════════════════════ */}
-        {viewTab === "my-team" && (
-          <motion.div
-            key="my-team"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-6"
-          >
-            {allegianceCountry && (
-              <div className="rounded-2xl overflow-hidden">
-                <div className="relative bg-gradient-to-r from-[var(--gold)]/10 via-transparent to-[var(--gold)]/10 p-6">
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-10 text-[100px] leading-none pointer-events-none">
-                    {allegianceCountry.flag}
+                    <div className="text-xs text-[var(--muted)]">R{currentRound}/{activeRounds} · Pick {pickInRound}/{draftOrder.length}</div>
                   </div>
-                  <div className="text-[10px] uppercase tracking-widest text-[var(--muted)] mb-3">❤️ Allegiance</div>
-                  <div className="flex items-center gap-4 relative z-10">
-                    <span className="text-5xl">{allegianceCountry.flag}</span>
-                    <div>
-                      <div className="text-2xl font-black">{allegianceCountry.name}</div>
-                      <div className="text-sm text-[var(--muted)]">
-                        Group {allegianceCountry.group} · FIFA #{allegianceCountry.fifaRanking} · 50% rate
-                      </div>
-                    </div>
+
+                  {phaseComplete && isAdmin && (
+                    <button onClick={() => handleAdvance(draftStatus === "country_draft" ? "player_draft" : "complete")}
+                      className="w-full py-3 bg-[var(--gold)] text-[var(--background)] rounded-xl font-black">
+                      {draftStatus === "country_draft" ? "Start Player Draft →" : "Complete Draft 🎉"}
+                    </button>
+                  )}
+
+                  {!phaseComplete && (
+                    <>
+                      <input type="text" placeholder={draftStatus === "country_draft" ? "Search countries..." : "Search players..."}
+                        value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full px-4 py-2 bg-[var(--surface)] border border-[var(--surface-border)] rounded-xl text-sm focus:outline-none focus:border-[var(--gold)]/50" />
+                      {draftStatus === "country_draft" ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto">
+                          {availableCountries.map((c) => <CountryCard key={c.code} country={c} disabled={!myTurn || submitting} onClick={() => handlePick("country", c.code)} />)}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto">
+                          {availablePlayers.map((p) => <FutCard key={p.id} player={p} compact onClick={myTurn && !submitting ? () => handlePick("player", p.id) : undefined} />)}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* COMPLETE */}
+              {draftStatus === "complete" && (
+                <div className="text-center space-y-6 py-8">
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="text-7xl">🏆</motion.div>
+                  <h2 className="text-3xl font-black"><span className="text-shimmer">Draft Complete!</span></h2>
+                  <p className="text-[var(--muted)]">Check the My Team tab to see your portfolio!</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* MY TEAM */}
+          {tab === "my-team" && (
+            <motion.div key="team" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              {myAllegiance && (
+                <div className="rounded-2xl bg-gradient-to-r from-[var(--gold)]/10 via-transparent to-[var(--gold)]/10 p-6">
+                  <div className="text-[10px] uppercase tracking-widest text-[var(--muted)] mb-2">❤️ Allegiance</div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-5xl">{WORLD_CUP_COUNTRIES.find((c) => c.code === myAllegiance.country_code)?.flag}</span>
+                    <div className="text-2xl font-black">{WORLD_CUP_COUNTRIES.find((c) => c.code === myAllegiance.country_code)?.name}</div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-                Drafted Countries
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {myCountries.map((country) =>
-                  country ? <CountryCard key={country.code} country={country} selected /> : null
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-                Drafted Players
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {myPlayers.map((player) =>
-                  player ? <FutCard key={player.id} player={player} goals={0} assists={0} points={0} /> : null
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* ═══════════════════════════════════════════ */}
-        {/* DRAFT BOARD                                */}
-        {/* ═══════════════════════════════════════════ */}
-        {viewTab === "draft-board" && (
-          <motion.div
-            key="draft-board"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-4"
-          >
-            {/* ── Draft Highlights Reel ─────────────── */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-                Draft Highlights
-              </h3>
-              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scrollbar-hide">
-                {DRAFT_HIGHLIGHTS.map((highlight, idx) => (
-                  <motion.div
-                    key={highlight.title}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.08 }}
-                    className={`snap-start shrink-0 w-[200px] rounded-2xl bg-gradient-to-b ${highlight.accent} bg-[var(--surface)] border border-[var(--surface-border)] p-4 space-y-2`}
-                  >
-                    <div className="text-3xl">{highlight.icon}</div>
-                    <div className="font-black text-sm leading-tight">{highlight.title}</div>
-                    <p className="text-xs text-[var(--muted)] leading-relaxed">{highlight.desc}</p>
-                    <div className="text-[10px] font-bold text-[var(--gold)] uppercase tracking-wider pt-1">
-                      {highlight.player}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-
-            {DRAFT_BOARD.map((round) => (
-              <div key={round.round} className="card-glow rounded-2xl bg-[var(--surface)] overflow-hidden">
-                <div className="px-4 py-2 bg-[var(--surface-light)] border-b border-[var(--surface-border)]">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-                    Round {round.round} {round.round === 2 ? "(Snake — Reverse)" : ""}
-                  </span>
+              )}
+              {myCountries.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">Countries ({myCountries.length})</div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">{myCountries.map((c) => c && <CountryCard key={c.code} country={c} selected />)}</div>
                 </div>
-                <div className="divide-y divide-[var(--surface-border)]/50">
-                  {round.picks.map((pick, i) => {
-                    const country = WORLD_CUP_COUNTRIES.find((c) => c.code === pick.pick);
-                    const isMe = pick.user === "Isaiah";
-                    return (
-                      <div
-                        key={i}
-                        className={`flex items-center gap-3 px-4 py-2.5 ${isMe ? "bg-[var(--gold)]/5" : ""}`}
-                      >
-                        <span className="text-xs text-[var(--muted)] w-6 text-right font-mono">
-                          {(round.round - 1) * 16 + i + 1}
-                        </span>
-                        <span className={`font-bold text-sm w-20 ${isMe ? "text-[var(--gold)]" : ""}`}>
-                          {pick.user}
-                        </span>
-                        <span className="text-xl">{country?.flag}</span>
-                        <span className="text-sm">{country?.name}</span>
-                        <span className="text-[10px] text-[var(--muted)] ml-auto">
-                          FIFA #{country?.fifaRanking}
-                        </span>
+              )}
+              {myPlayers.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">Players ({myPlayers.length})</div>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{myPlayers.map((p) => p && <FutCard key={p.id} player={p} />)}</div>
+                </div>
+              )}
+              {!myAllegiance && myCountries.length === 0 && myPlayers.length === 0 && (
+                <div className="text-center py-12 text-[var(--muted)]"><div className="text-4xl mb-3">📋</div><p>No picks yet.</p></div>
+              )}
+            </motion.div>
+          )}
+
+          {/* HISTORY */}
+          {tab === "board" && (
+            <motion.div key="board" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              {draftStatus !== "pre_draft" && draftStatus !== "allegiance" && allegiances.length > 0 && (
+                <div className="rounded-2xl bg-[var(--surface)] p-4">
+                  <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-3">Allegiances</div>
+                  <div className="flex flex-wrap gap-2">
+                    {allegiances.map((a) => (
+                      <div key={a.user_id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-light)] text-xs">
+                        <span>{WORLD_CUP_COUNTRIES.find((c) => c.code === a.country_code)?.flag}</span>
+                        <span className="font-bold">{getMemberName(a.user_id)}</span>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+              )}
+              {[{ label: "Country Draft", items: countryPicks, type: "country" as const }, { label: "Player Draft", items: playerPicks, type: "player" as const }]
+                .filter((s) => s.items.length > 0)
+                .map((section) => (
+                <div key={section.label} className="rounded-2xl bg-[var(--surface)] overflow-hidden">
+                  <div className="px-4 py-2 bg-[var(--surface-light)] border-b border-[var(--surface-border)]">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">{section.label} ({section.items.length})</span>
+                  </div>
+                  <div className="divide-y divide-[var(--surface-border)]/50">
+                    {section.items.map((pick, i) => {
+                      const isMe = pick.user_id === user?.id;
+                      const display = section.type === "country"
+                        ? WORLD_CUP_COUNTRIES.find((c) => c.code === pick.country_code)
+                        : PLAYER_POOL.find((p) => p.id === pick.player_id);
+                      return (
+                        <div key={pick.id} className={`flex items-center gap-3 px-4 py-2.5 ${isMe ? "bg-[var(--gold)]/5" : ""}`}>
+                          <span className="text-xs text-[var(--muted)] w-6 text-right font-mono">{i + 1}</span>
+                          <span className={`font-bold text-sm w-24 ${isMe ? "text-[var(--gold)]" : ""}`}>{getMemberName(pick.user_id)}</span>
+                          {section.type === "country" && display && "flag" in display && <><span className="text-xl">{display.flag}</span><span className="text-sm">{display.name}</span></>}
+                          {section.type === "player" && display && "rating" in display && <><span className="text-sm font-mono text-[var(--gold)]">{display.rating}</span><span className="text-sm">{display.name}</span></>}
+                          <span className="text-[10px] text-[var(--muted)] ml-auto">R{pick.round}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              {countryPicks.length === 0 && playerPicks.length === 0 && (
+                <div className="text-center py-12 text-[var(--muted)]"><div className="text-4xl mb-3">📋</div><p>No picks yet.</p></div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </div>
   );
 }
