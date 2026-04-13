@@ -29,7 +29,7 @@ export const draftPickSchema = z.object({
   country_code: z.string().max(10).optional(),
   player_id: z.string().max(50).optional(),
   round: z.number().int().min(1).max(20),
-  pick_number: z.number().int().min(1).max(500),
+  pick_number: z.number().int().min(0).max(500),
 });
 
 export const predictionSchema = z.object({

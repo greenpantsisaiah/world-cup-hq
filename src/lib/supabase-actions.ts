@@ -27,6 +27,20 @@ async function getAuthenticatedUser() {
   return { supabase, user };
 }
 
+async function verifyLeagueAdmin(supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string, leagueId: string) {
+  const { data: league } = await supabase.from("leagues").select("admin_id").eq("id", leagueId).single();
+  if (!league || league.admin_id !== userId) {
+    throw new Error("Only the league admin can perform this action");
+  }
+}
+
+async function verifyAnyLeagueAdmin(supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) {
+  const { data } = await supabase.from("leagues").select("id").eq("admin_id", userId).limit(1);
+  if (!data || data.length === 0) {
+    throw new Error("Only league admins can perform this action");
+  }
+}
+
 // ─── League Actions ──────────────────────────────────────────
 
 export async function createLeague(config: {
@@ -216,6 +230,28 @@ export async function makeDraftPick(leagueId: string, input: {
   const { supabase, user } = await getAuthenticatedUser();
   const validated = draftPickSchema.parse(input);
 
+  // Server-side turn validation
+  const { data: league } = await supabase.from("leagues").select("draft_status, draft_order, current_pick_number").eq("id", lid).single();
+  if (!league) throw new Error("League not found");
+
+  const expectedPhase = validated.pick_type === "country" ? "country_draft" : "player_draft";
+  if (league.draft_status !== expectedPhase) {
+    throw new Error("Draft is not in the correct phase for this pick type");
+  }
+
+  if (league.current_pick_number !== validated.pick_number) {
+    throw new Error("Pick number mismatch — someone may have picked before you");
+  }
+
+  const draftOrder = (league.draft_order as string[]) || [];
+  if (draftOrder.length > 0) {
+    const { getCurrentDrafter } = await import("./draft-utils");
+    const expectedDrafter = getCurrentDrafter(draftOrder, league.current_pick_number);
+    if (expectedDrafter !== user.id) {
+      throw new Error("It's not your turn to pick");
+    }
+  }
+
   const { error } = await supabase
     .from("draft_picks")
     .insert({ league_id: lid, user_id: user.id, ...validated });
@@ -253,6 +289,13 @@ export async function submitPrediction(leagueId: string, input: {
   const { supabase, user } = await getAuthenticatedUser();
   const validated = predictionSchema.parse(input);
 
+  // Check match hasn't kicked off yet
+  const { data: match } = await supabase.from("matches").select("kickoff, is_complete").eq("id", validated.match_id).single();
+  if (match) {
+    if (match.is_complete) throw new Error("Match is already complete");
+    if (new Date(match.kickoff) <= new Date()) throw new Error("Match has already kicked off — predictions are locked");
+  }
+
   const { error } = await supabase
     .from("predictions")
     .upsert(
@@ -284,6 +327,19 @@ export async function submitDailyPick(leagueId: string, input: {
   const lid = leagueIdSchema.parse(leagueId);
   const { supabase, user } = await getAuthenticatedUser();
   const validated = dailyPickSchema.parse(input);
+
+  // Check if first match of the day has already kicked off
+  const { data: firstMatch } = await supabase
+    .from("matches")
+    .select("kickoff")
+    .eq("match_day", validated.pick_date)
+    .order("kickoff", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (firstMatch && new Date(firstMatch.kickoff) <= new Date()) {
+    throw new Error("Daily picks are locked — first match has already kicked off");
+  }
 
   const { error } = await supabase
     .from("daily_picks")
@@ -367,7 +423,13 @@ export async function getHotTakes(leagueId: string) {
 
 export async function resolveHotTake(hotTakeId: string, status: "resolved_hit" | "resolved_miss") {
   const tid = leagueIdSchema.parse(hotTakeId);
-  const { supabase } = await getAuthenticatedUser();
+  const { supabase, user } = await getAuthenticatedUser();
+
+  // Verify caller is admin of the hot take's league
+  const { data: take } = await supabase.from("hot_takes").select("league_id").eq("id", tid).single();
+  if (!take) throw new Error("Hot take not found");
+  await verifyLeagueAdmin(supabase, user.id, take.league_id);
+
   const { error } = await supabase
     .from("hot_takes")
     .update({ status })
@@ -410,7 +472,8 @@ export async function createMatch(input: {
   stage: string;
   group_letter?: string;
 }) {
-  const { supabase } = await getAuthenticatedUser();
+  const { supabase, user } = await getAuthenticatedUser();
+  await verifyAnyLeagueAdmin(supabase, user.id);
   const validated = createMatchSchema.parse(input);
 
   const { data, error } = await supabase
@@ -449,8 +512,9 @@ export async function updateMatchResult(matchId: string, result: {
   first_scorer?: string;
   man_of_the_match?: string;
 }) {
-  const mid = leagueIdSchema.parse(matchId); // reuse UUID validator
-  const { supabase } = await getAuthenticatedUser();
+  const mid = leagueIdSchema.parse(matchId);
+  const { supabase, user } = await getAuthenticatedUser();
+  await verifyAnyLeagueAdmin(supabase, user.id);
   const validated = matchResultSchema.parse(result);
 
   const { error } = await supabase
@@ -470,7 +534,8 @@ export async function addMatchEvent(input: {
   event_type: string;
   minute?: number;
 }) {
-  const { supabase } = await getAuthenticatedUser();
+  const { supabase, user } = await getAuthenticatedUser();
+  await verifyAnyLeagueAdmin(supabase, user.id);
   const validated = matchEventSchema.parse(input);
 
   const { data, error } = await supabase
@@ -484,7 +549,8 @@ export async function addMatchEvent(input: {
 
 export async function deleteMatchEvent(eventId: string) {
   const eid = leagueIdSchema.parse(eventId);
-  const { supabase } = await getAuthenticatedUser();
+  const { supabase, user } = await getAuthenticatedUser();
+  await verifyAnyLeagueAdmin(supabase, user.id);
   const { error } = await supabase
     .from("match_events")
     .delete()
@@ -494,7 +560,8 @@ export async function deleteMatchEvent(eventId: string) {
 
 export async function deleteMatch(matchId: string) {
   const mid = leagueIdSchema.parse(matchId);
-  const { supabase } = await getAuthenticatedUser();
+  const { supabase, user } = await getAuthenticatedUser();
+  await verifyAnyLeagueAdmin(supabase, user.id);
   const { error } = await supabase
     .from("matches")
     .delete()
@@ -504,8 +571,12 @@ export async function deleteMatch(matchId: string) {
 
 // Score a match for a specific league (called after marking complete)
 export async function scoreMatch(matchId: string, leagueId: string) {
+  const lid = leagueIdSchema.parse(leagueId);
+  const { supabase, user } = await getAuthenticatedUser();
+  await verifyLeagueAdmin(supabase, user.id, lid);
+
   const { scoreCompletedMatch } = await import("./scoring-engine");
-  return scoreCompletedMatch(matchId, leagueId);
+  return scoreCompletedMatch(matchId, lid);
 }
 
 // ─── Leaderboard + Portfolio ─────────────────────────────────
