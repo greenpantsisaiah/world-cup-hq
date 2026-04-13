@@ -501,3 +501,39 @@ export async function deleteMatch(matchId: string) {
     .eq("id", mid);
   if (error) throw new Error("Failed to delete match");
 }
+
+// Score a match for a specific league (called after marking complete)
+export async function scoreMatch(matchId: string, leagueId: string) {
+  const { scoreCompletedMatch } = await import("./scoring-engine");
+  return scoreCompletedMatch(matchId, leagueId);
+}
+
+// ─── Leaderboard + Portfolio ─────────────────────────────────
+
+export async function getLeaderboard(leagueId: string) {
+  const lid = leagueIdSchema.parse(leagueId);
+  const { supabase } = await getAuthenticatedUser();
+  const { data } = await supabase
+    .from("user_scores")
+    .select("*, profiles(name)")
+    .eq("league_id", lid)
+    .order("total", { ascending: false });
+  return data ?? [];
+}
+
+export async function getUserPortfolio(leagueId: string) {
+  const lid = leagueIdSchema.parse(leagueId);
+  const { supabase, user } = await getAuthenticatedUser();
+
+  const [scoresRes, picksRes, allegianceRes] = await Promise.all([
+    supabase.from("user_scores").select("*").eq("league_id", lid).eq("user_id", user.id).single(),
+    supabase.from("draft_picks").select("*").eq("league_id", lid).eq("user_id", user.id),
+    supabase.from("allegiances").select("*").eq("league_id", lid).eq("user_id", user.id).single(),
+  ]);
+
+  return {
+    scores: scoresRes.data,
+    picks: picksRes.data ?? [],
+    allegiance: allegianceRes.data,
+  };
+}
