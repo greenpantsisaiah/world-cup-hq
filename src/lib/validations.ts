@@ -68,3 +68,27 @@ export const hotTakeVoteSchema = z.object({
 export const leagueIdSchema = uuidSchema;
 
 export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD format");
+
+export const createMatchSchema = z.object({
+  home_country: z.string().max(10),
+  away_country: z.string().max(10),
+  match_day: dateSchema,
+  kickoff: z.string().datetime(),
+  stage: z.enum(["group", "r16", "qf", "sf", "third_place", "final"]),
+  group_letter: z.string().max(2).optional(),
+});
+
+export const matchResultSchema = z.object({
+  home_score: z.number().int().min(0).max(20),
+  away_score: z.number().int().min(0).max(20),
+  first_scorer: z.string().max(50).optional(),
+  man_of_the_match: z.string().max(50).optional(),
+});
+
+export const matchEventSchema = z.object({
+  match_id: uuidSchema,
+  player_id: z.string().max(50),
+  country_code: z.string().max(10),
+  event_type: z.enum(["goal", "assist", "yellow_card", "red_card", "penalty_miss", "clean_sheet", "motm"]),
+  minute: z.number().int().min(0).max(150).optional(),
+});

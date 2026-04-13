@@ -13,6 +13,9 @@ import {
   hotTakeVoteSchema,
   leagueIdSchema,
   dateSchema,
+  createMatchSchema,
+  matchResultSchema,
+  matchEventSchema,
 } from "./validations";
 
 async function getAuthenticatedUser() {
@@ -324,4 +327,106 @@ export async function setH2HLineup(input: { matchup_id: string; lineup: string[]
     .update({ [field]: validated.lineup })
     .eq("id", validated.matchup_id);
   if (error) throw new Error("Failed to set lineup");
+}
+
+// ─── Match Actions (Admin) ───────────────────────────────────
+
+export async function createMatch(input: {
+  home_country: string;
+  away_country: string;
+  match_day: string;
+  kickoff: string;
+  stage: string;
+  group_letter?: string;
+}) {
+  const { supabase } = await getAuthenticatedUser();
+  const validated = createMatchSchema.parse(input);
+
+  const { data, error } = await supabase
+    .from("matches")
+    .insert(validated)
+    .select()
+    .single();
+  if (error) throw new Error("Failed to create match");
+  return data;
+}
+
+export async function getMatchesByDate(matchDay: string) {
+  const validDate = dateSchema.parse(matchDay);
+  const { supabase } = await getAuthenticatedUser();
+  const { data } = await supabase
+    .from("matches")
+    .select("*, match_events(*)")
+    .eq("match_day", validDate)
+    .order("kickoff");
+  return data ?? [];
+}
+
+export async function getAllMatches() {
+  const { supabase } = await getAuthenticatedUser();
+  const { data } = await supabase
+    .from("matches")
+    .select("*")
+    .order("match_day")
+    .order("kickoff");
+  return data ?? [];
+}
+
+export async function updateMatchResult(matchId: string, result: {
+  home_score: number;
+  away_score: number;
+  first_scorer?: string;
+  man_of_the_match?: string;
+}) {
+  const mid = leagueIdSchema.parse(matchId); // reuse UUID validator
+  const { supabase } = await getAuthenticatedUser();
+  const validated = matchResultSchema.parse(result);
+
+  const { error } = await supabase
+    .from("matches")
+    .update({
+      ...validated,
+      is_complete: true,
+    })
+    .eq("id", mid);
+  if (error) throw new Error("Failed to update match result");
+}
+
+export async function addMatchEvent(input: {
+  match_id: string;
+  player_id: string;
+  country_code: string;
+  event_type: string;
+  minute?: number;
+}) {
+  const { supabase } = await getAuthenticatedUser();
+  const validated = matchEventSchema.parse(input);
+
+  const { data, error } = await supabase
+    .from("match_events")
+    .insert(validated)
+    .select()
+    .single();
+  if (error) throw new Error("Failed to add match event");
+  return data;
+}
+
+export async function deleteMatchEvent(eventId: string) {
+  const eid = leagueIdSchema.parse(eventId);
+  const { supabase } = await getAuthenticatedUser();
+  const { error } = await supabase
+    .from("match_events")
+    .delete()
+    .eq("id", eid);
+  if (error) throw new Error("Failed to delete match event");
+}
+
+export async function deleteMatch(matchId: string) {
+  const mid = leagueIdSchema.parse(matchId);
+  const { supabase } = await getAuthenticatedUser();
+  const { error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("id", mid);
+  if (error) throw new Error("Failed to delete match");
 }

@@ -99,6 +99,17 @@ export interface Match {
   manOfTheMatch?: string; // player ID
 }
 
+export type MatchEventType = "goal" | "assist" | "yellow_card" | "red_card" | "penalty_miss" | "clean_sheet" | "motm";
+
+export interface MatchEvent {
+  id: string;
+  matchId: string;
+  playerId: string;
+  countryCode: string;
+  eventType: MatchEventType;
+  minute?: number;
+}
+
 export interface MatchPrediction {
   userId: string;
   matchId: string;
