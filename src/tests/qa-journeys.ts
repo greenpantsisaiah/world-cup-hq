@@ -1,3 +1,5 @@
+export {}; // Module isolation
+
 /**
  * QA Journey Test Suite — World Cup HQ
  *

@@ -11,6 +11,7 @@ import {
   addMatchEvent,
   deleteMatchEvent,
   deleteMatch,
+  scoreMatch,
 } from "@/lib/supabase-actions";
 import { WORLD_CUP_COUNTRIES } from "@/data/countries";
 import { PLAYER_POOL } from "@/data/players";
@@ -42,7 +43,7 @@ interface EventRow {
 
 export default function MatchDayPage() {
   const { user } = useAuth();
-  const { isAdmin } = useLeague();
+  const { isAdmin, leagueId } = useLeague();
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [matches, setMatches] = useState<MatchRow[]>([]);
@@ -117,6 +118,17 @@ export default function MatchDayPage() {
         home_score: homeScore,
         away_score: awayScore,
       });
+
+      // Trigger scoring for this match across the league
+      if (leagueId) {
+        try {
+          await scoreMatch(matchId, leagueId);
+        } catch {
+          // Scoring failed but match result is saved — not blocking
+          setError("Match saved but scoring failed. Try rescoring later.");
+        }
+      }
+
       setEditingMatch(null);
       await loadMatches();
     } catch {
@@ -179,6 +191,7 @@ export default function MatchDayPage() {
   };
 
   if (!user) return <div className="text-center py-20 text-[var(--muted)]">Sign in to access.</div>;
+  if (!isAdmin) return <div className="text-center py-20 text-[var(--muted)]"><div className="text-4xl mb-3">🔒</div><p className="font-bold">Admin Only</p><p className="text-sm mt-1">Only league admins can manage matches.</p></div>;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">

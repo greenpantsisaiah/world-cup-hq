@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { useLeague } from "@/components/league-provider";
 import { AnimatedNumber } from "@/components/animated-number";
 import { Sparkline } from "@/components/sparkline";
 
@@ -62,6 +63,7 @@ const HOW_IT_WORKS = [
 ];
 
 function HeroCTA({ user, profile }: { user: unknown; profile: { name: string } | null }) {
+  const { leagueId } = useLeague();
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [code, setCode] = useState("");
   const router = useRouter();
@@ -76,10 +78,10 @@ function HeroCTA({ user, profile }: { user: unknown; profile: { name: string } |
       >
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
-            href="/portfolio"
+            href={leagueId ? "/portfolio" : "/admin"}
             className="px-8 py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/30"
           >
-            Go to Dashboard →
+            {leagueId ? "Go to Dashboard →" : "Set Up Your League →"}
           </Link>
         </div>
         <div className="text-sm text-[var(--muted)] text-center">

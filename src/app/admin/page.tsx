@@ -519,12 +519,19 @@ function AdminContent() {
             )}
 
             {/* Quick actions */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid ${league && user && league.admin_id === user.id ? "grid-cols-3" : "grid-cols-2"} gap-3`}>
               <Link href="/draft" className="rounded-2xl bg-[var(--surface)] p-5 text-center hover:bg-[var(--surface-light)] transition-colors group">
                 <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">📋</div>
                 <div className="font-black text-sm">Draft Room</div>
                 <div className="text-[10px] text-[var(--muted)] mt-1">View your team</div>
               </Link>
+              {league && user && league.admin_id === user.id && (
+                <Link href="/admin/match-day" className="rounded-2xl bg-[var(--surface)] p-5 text-center hover:bg-[var(--surface-light)] transition-colors group">
+                  <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">⚽</div>
+                  <div className="font-black text-sm">Match Day</div>
+                  <div className="text-[10px] text-[var(--muted)] mt-1">Create & score matches</div>
+                </Link>
+              )}
               <Link href="/try" className="rounded-2xl bg-[var(--surface)] p-5 text-center hover:bg-[var(--surface-light)] transition-colors group">
                 <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">⚡</div>
                 <div className="font-black text-sm">Simulate</div>

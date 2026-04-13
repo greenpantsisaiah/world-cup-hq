@@ -52,6 +52,7 @@ export default function DraftPage() {
   const [picks, setPicks] = useState<DraftPickRow[]>([]);
   const [allegiances, setAllegiances] = useState<AllegianceRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingPick, setPendingPick] = useState<{ type: "country" | "player"; id: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -287,16 +288,41 @@ export default function DraftPage() {
 
                   {!phaseComplete && (
                     <>
+                      {/* Confirm pick bar */}
+                      {pendingPick && myTurn && (
+                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                          className="flex items-center gap-3 p-3 rounded-xl bg-[var(--gold)]/10 border border-[var(--gold)]/30">
+                          <span className="text-2xl">
+                            {pendingPick.type === "country"
+                              ? WORLD_CUP_COUNTRIES.find((c) => c.code === pendingPick.id)?.flag
+                              : PLAYER_POOL.find((p) => p.id === pendingPick.id)?.name}
+                          </span>
+                          <div className="flex-1 font-bold text-sm">
+                            {pendingPick.type === "country"
+                              ? WORLD_CUP_COUNTRIES.find((c) => c.code === pendingPick.id)?.name
+                              : `${PLAYER_POOL.find((p) => p.id === pendingPick.id)?.name} (${PLAYER_POOL.find((p) => p.id === pendingPick.id)?.rating})`}
+                          </div>
+                          <button onClick={() => setPendingPick(null)}
+                            className="px-3 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--foreground)]">Cancel</button>
+                          <button
+                            onClick={async () => { await handlePick(pendingPick.type, pendingPick.id); setPendingPick(null); }}
+                            disabled={submitting}
+                            className="px-4 py-2 bg-[var(--gold)] text-[var(--background)] font-black rounded-xl hover:bg-[var(--gold-dim)] disabled:opacity-50 text-sm">
+                            {submitting ? "Picking..." : "Confirm Pick ✓"}
+                          </button>
+                        </motion.div>
+                      )}
+
                       <input type="text" placeholder={draftStatus === "country_draft" ? "Search countries..." : "Search players..."}
                         value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full px-4 py-2 bg-[var(--surface)] border border-[var(--surface-border)] rounded-xl text-sm focus:outline-none focus:border-[var(--gold)]/50" />
                       {draftStatus === "country_draft" ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto">
-                          {availableCountries.map((c) => <CountryCard key={c.code} country={c} disabled={!myTurn || submitting} onClick={() => handlePick("country", c.code)} />)}
+                          {availableCountries.map((c) => <CountryCard key={c.code} country={c} disabled={!myTurn || submitting} selected={pendingPick?.id === c.code} onClick={() => setPendingPick({ type: "country", id: c.code })} />)}
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto">
-                          {availablePlayers.map((p) => <FutCard key={p.id} player={p} compact onClick={myTurn && !submitting ? () => handlePick("player", p.id) : undefined} />)}
+                          {availablePlayers.map((p) => <FutCard key={p.id} player={p} compact selected={pendingPick?.id === p.id} onClick={myTurn && !submitting ? () => setPendingPick({ type: "player", id: p.id }) : undefined} />)}
                         </div>
                       )}
                     </>

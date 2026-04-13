@@ -1,3 +1,5 @@
+export {}; // Module isolation
+
 /**
  * QA Gameplay Test Suite — World Cup HQ
  * Tests the full gameplay loop: draft, matches, predictions, scoring

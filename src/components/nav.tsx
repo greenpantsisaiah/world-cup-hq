@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/portfolio", label: "Portfolio", mobileLabel: "Stats", icon: "📊" },
   { href: "/leaderboard", label: "Rankings", mobileLabel: "Rank", icon: "🏆" },
   { href: "/hot-takes", label: "Hot Takes", mobileLabel: "Takes", icon: "🔥" },
+  { href: "/admin", label: "League", mobileLabel: "League", icon: "⚙️" },
 ];
 
 export function Nav() {
@@ -65,13 +66,8 @@ export function Nav() {
             })}
           </div>
 
-          {/* Admin link - desktop only */}
-          <Link
-            href="/admin"
-            className="hidden md:flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-          >
-            ⚙️ Settings
-          </Link>
+          {/* Spacer for desktop layout */}
+          <div className="hidden md:block w-16" />
         </div>
       </div>
     </nav>
