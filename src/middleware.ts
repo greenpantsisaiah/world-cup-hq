@@ -15,10 +15,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Skip auth check if env vars are missing (build time / prerendering)
+  // Skip auth check if env vars are missing (build time / prerendering only)
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
+    // In production, missing env vars means misconfiguration — redirect to home
+    if (process.env.NODE_ENV === "production") {
+      console.error("SECURITY: Supabase env vars missing in production middleware");
+      const homeUrl = request.nextUrl.clone();
+      homeUrl.pathname = "/";
+      return NextResponse.redirect(homeUrl);
+    }
     return NextResponse.next();
   }
 

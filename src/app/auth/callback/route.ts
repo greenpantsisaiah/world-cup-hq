@@ -39,10 +39,11 @@ export async function GET(request: Request) {
   }
 
   // Email OTP / magic link verification via token_hash
-  if (tokenHash && type) {
+  const ALLOWED_OTP_TYPES = ["email", "magiclink", "signup", "recovery"];
+  if (tokenHash && type && ALLOWED_OTP_TYPES.includes(type)) {
     await supabase.auth.verifyOtp({
       token_hash: tokenHash,
-      type: type as "email" | "magiclink",
+      type: type as "email" | "magiclink" | "signup" | "recovery",
     });
   }
 

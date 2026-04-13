@@ -7,9 +7,22 @@
  * Run: npx tsx src/tests/qa-journeys.ts
  */
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qedfrylkyyddebtlspwx.supabase.co";
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_RwU5NvkRr4G_s3JvLH9h7A_ndLh73WI";
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://world-cup-hq-eight.vercel.app";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
+const TEST_PASS_ENV = process.env.QA_TEST_PASSWORD;
+
+if (!SUPABASE_URL || !SUPABASE_KEY || !SITE_URL || !TEST_PASS_ENV) {
+  console.error("Missing required env vars. Set these in .env.local:");
+  console.error("  NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SITE_URL, QA_TEST_PASSWORD");
+  process.exit(1);
+}
+
+// After the guard, these are guaranteed to be strings
+const SB_URL: string = SUPABASE_URL;
+const SB_KEY: string = SUPABASE_KEY;
+const APP_URL: string = SITE_URL;
+const TEST_PASS: string = TEST_PASS_ENV;
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -30,10 +43,10 @@ function log(step: string, passed: boolean, detail: string) {
 }
 
 async function api(path: string, options: RequestInit = {}): Promise<Response> {
-  return fetch(`${SUPABASE_URL}${path}`, {
+  return fetch(`${SB_URL}${path}`, {
     ...options,
     headers: {
-      "apikey": SUPABASE_KEY,
+      "apikey": SB_KEY,
       "Content-Type": "application/json",
       ...options.headers,
     },
@@ -48,14 +61,14 @@ async function authHeaders(email: string, password: string): Promise<Record<stri
   const data = await resp.json();
   if (!data.access_token) throw new Error(`Auth failed for ${email}: ${JSON.stringify(data)}`);
   return {
-    "apikey": SUPABASE_KEY,
+    "apikey": SB_KEY,
     "Authorization": `Bearer ${data.access_token}`,
     "Content-Type": "application/json",
   };
 }
 
 async function siteGet(path: string): Promise<{ status: number; redirectUrl?: string }> {
-  const resp = await fetch(`${SITE_URL}${path}`, { redirect: "manual" });
+  const resp = await fetch(`${APP_URL}${path}`, { redirect: "manual" });
   return {
     status: resp.status,
     redirectUrl: resp.headers.get("location") || undefined,
@@ -88,7 +101,7 @@ async function journey2_ProtectedRoutesRedirect() {
   for (const route of ["/draft", "/daily", "/portfolio", "/leaderboard", "/hot-takes"]) {
     const resp = await siteGet(route);
     const redirectsToAdmin = resp.status === 307 && resp.redirectUrl?.includes("/admin");
-    log(`${route} redirects`, redirectsToAdmin, `${resp.status} → ${resp.redirectUrl || "no redirect"}`);
+    log(`${route} redirects`, !!redirectsToAdmin, `${resp.status} → ${resp.redirectUrl || "no redirect"}`);
   }
 }
 
@@ -98,7 +111,7 @@ async function journey3_TestUserAuth() {
 
   const resp = await api("/auth/v1/token?grant_type=password", {
     method: "POST",
-    body: JSON.stringify({ email: "isaiah@example.com", password: "worldcup2026" }),
+    body: JSON.stringify({ email: "isaiah@example.com", password: TEST_PASS }),
   });
   const data = await resp.json();
   log("Password auth succeeds", !!data.access_token, data.access_token ? `Token length: ${data.access_token.length}` : `Error: ${data.msg}`);
@@ -110,10 +123,10 @@ async function journey4_CreateLeague() {
   currentJourney = "4. Create a league and verify it exists";
   console.log(`\n🧪 ${currentJourney}`);
 
-  const headers = await authHeaders("tom@example.com", "worldcup2026");
+  const headers = await authHeaders("tom@example.com", TEST_PASS);
 
   // Create league
-  const createResp = await fetch(`${SUPABASE_URL}/rest/v1/leagues`, {
+  const createResp = await fetch(`${SB_URL}/rest/v1/leagues`, {
     method: "POST",
     headers: { ...headers, "Prefer": "return=representation" },
     body: JSON.stringify({
@@ -138,7 +151,7 @@ async function journey4_CreateLeague() {
   if (!created) return;
 
   // Auto-join as member
-  const joinResp = await fetch(`${SUPABASE_URL}/rest/v1/league_members`, {
+  const joinResp = await fetch(`${SB_URL}/rest/v1/league_members`, {
     method: "POST",
     headers,
     body: JSON.stringify({ league_id: league[0].id, user_id: "a0000001-0000-0000-0000-000000000013" }),
@@ -146,15 +159,15 @@ async function journey4_CreateLeague() {
   log("Admin auto-joined", joinResp.status === 201, `Status: ${joinResp.status}`);
 
   // Verify league is visible
-  const checkResp = await fetch(`${SUPABASE_URL}/rest/v1/leagues?id=eq.${league[0].id}&select=name`, {
+  const checkResp = await fetch(`${SB_URL}/rest/v1/leagues?id=eq.${league[0].id}&select=name`, {
     headers,
   });
   const checkData = await checkResp.json();
   log("League visible to admin", checkData.length === 1, `Found: ${checkData.length} leagues`);
 
   // Clean up
-  await fetch(`${SUPABASE_URL}/rest/v1/league_members?league_id=eq.${league[0].id}`, { method: "DELETE", headers });
-  await fetch(`${SUPABASE_URL}/rest/v1/leagues?id=eq.${league[0].id}`, { method: "DELETE", headers });
+  await fetch(`${SB_URL}/rest/v1/league_members?league_id=eq.${league[0].id}`, { method: "DELETE", headers });
+  await fetch(`${SB_URL}/rest/v1/leagues?id=eq.${league[0].id}`, { method: "DELETE", headers });
 }
 
 async function journey5_InviteCodeJoin() {
@@ -162,8 +175,8 @@ async function journey5_InviteCodeJoin() {
   console.log(`\n🧪 ${currentJourney}`);
 
   // Tom creates a league
-  const tomHeaders = await authHeaders("tom@example.com", "worldcup2026");
-  const createResp = await fetch(`${SUPABASE_URL}/rest/v1/leagues`, {
+  const tomHeaders = await authHeaders("tom@example.com", TEST_PASS);
+  const createResp = await fetch(`${SB_URL}/rest/v1/leagues`, {
     method: "POST",
     headers: { ...tomHeaders, "Prefer": "return=representation" },
     body: JSON.stringify({
@@ -185,15 +198,15 @@ async function journey5_InviteCodeJoin() {
   log("Tom created league", !!league?.invite_code, `Code: ${league?.invite_code}`);
 
   // Tom joins as member
-  await fetch(`${SUPABASE_URL}/rest/v1/league_members`, {
+  await fetch(`${SB_URL}/rest/v1/league_members`, {
     method: "POST",
     headers: tomHeaders,
     body: JSON.stringify({ league_id: league.id, user_id: "a0000001-0000-0000-0000-000000000013" }),
   });
 
   // Olivia looks up invite code via RPC (non-member)
-  const oliviaHeaders = await authHeaders("olivia@example.com", "worldcup2026");
-  const lookupResp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
+  const oliviaHeaders = await authHeaders("olivia@example.com", TEST_PASS);
+  const lookupResp = await fetch(`${SB_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
     method: "POST",
     headers: oliviaHeaders,
     body: JSON.stringify({ code: league.invite_code }),
@@ -202,7 +215,7 @@ async function journey5_InviteCodeJoin() {
   log("Non-member can find league by code", lookupData.length === 1, `Found: ${lookupData.length}`);
 
   // Olivia joins
-  const joinResp = await fetch(`${SUPABASE_URL}/rest/v1/league_members`, {
+  const joinResp = await fetch(`${SB_URL}/rest/v1/league_members`, {
     method: "POST",
     headers: oliviaHeaders,
     body: JSON.stringify({ league_id: league.id, user_id: "a0000001-0000-0000-0000-000000000014" }),
@@ -210,14 +223,14 @@ async function journey5_InviteCodeJoin() {
   log("Olivia joined league", joinResp.status === 201, `Status: ${joinResp.status}`);
 
   // Verify both are members
-  const membersResp = await fetch(`${SUPABASE_URL}/rest/v1/league_members?league_id=eq.${league.id}&select=profiles(name)`, {
+  const membersResp = await fetch(`${SB_URL}/rest/v1/league_members?league_id=eq.${league.id}&select=profiles(name)`, {
     headers: oliviaHeaders,
   });
   const members = await membersResp.json();
   log("Both members visible", members.length === 2, `Members: ${members.length}`);
 
   // Olivia tries to join again (duplicate)
-  const dupeResp = await fetch(`${SUPABASE_URL}/rest/v1/league_members`, {
+  const dupeResp = await fetch(`${SB_URL}/rest/v1/league_members`, {
     method: "POST",
     headers: oliviaHeaders,
     body: JSON.stringify({ league_id: league.id, user_id: "a0000001-0000-0000-0000-000000000014" }),
@@ -225,16 +238,16 @@ async function journey5_InviteCodeJoin() {
   log("Duplicate join blocked", dupeResp.status === 409, `Status: ${dupeResp.status}`);
 
   // Clean up
-  await fetch(`${SUPABASE_URL}/rest/v1/league_members?league_id=eq.${league.id}`, { method: "DELETE", headers: tomHeaders });
-  await fetch(`${SUPABASE_URL}/rest/v1/leagues?id=eq.${league.id}`, { method: "DELETE", headers: tomHeaders });
+  await fetch(`${SB_URL}/rest/v1/league_members?league_id=eq.${league.id}`, { method: "DELETE", headers: tomHeaders });
+  await fetch(`${SB_URL}/rest/v1/leagues?id=eq.${league.id}`, { method: "DELETE", headers: tomHeaders });
 }
 
 async function journey6_LeagueCapEnforcement() {
   currentJourney = "6. League max participants enforced";
   console.log(`\n🧪 ${currentJourney}`);
 
-  const tomHeaders = await authHeaders("tom@example.com", "worldcup2026");
-  const createResp = await fetch(`${SUPABASE_URL}/rest/v1/leagues`, {
+  const tomHeaders = await authHeaders("tom@example.com", TEST_PASS);
+  const createResp = await fetch(`${SB_URL}/rest/v1/leagues`, {
     method: "POST",
     headers: { ...tomHeaders, "Prefer": "return=representation" },
     body: JSON.stringify({
@@ -255,19 +268,19 @@ async function journey6_LeagueCapEnforcement() {
   const league = (await createResp.json())[0];
 
   // Tom + Olivia join (fills to 2/2)
-  await fetch(`${SUPABASE_URL}/rest/v1/league_members`, {
+  await fetch(`${SB_URL}/rest/v1/league_members`, {
     method: "POST", headers: tomHeaders,
     body: JSON.stringify({ league_id: league.id, user_id: "a0000001-0000-0000-0000-000000000013" }),
   });
-  const oliviaHeaders = await authHeaders("olivia@example.com", "worldcup2026");
-  await fetch(`${SUPABASE_URL}/rest/v1/league_members`, {
+  const oliviaHeaders = await authHeaders("olivia@example.com", TEST_PASS);
+  await fetch(`${SB_URL}/rest/v1/league_members`, {
     method: "POST", headers: oliviaHeaders,
     body: JSON.stringify({ league_id: league.id, user_id: "a0000001-0000-0000-0000-000000000014" }),
   });
 
   // Ryan tries to join (should be blocked by trigger)
-  const ryanHeaders = await authHeaders("ryan@example.com", "worldcup2026");
-  const overflowResp = await fetch(`${SUPABASE_URL}/rest/v1/league_members`, {
+  const ryanHeaders = await authHeaders("ryan@example.com", TEST_PASS);
+  const overflowResp = await fetch(`${SB_URL}/rest/v1/league_members`, {
     method: "POST", headers: ryanHeaders,
     body: JSON.stringify({ league_id: league.id, user_id: "a0000001-0000-0000-0000-000000000015" }),
   });
@@ -275,8 +288,8 @@ async function journey6_LeagueCapEnforcement() {
   log("3rd member blocked (max=2)", blocked, `Status: ${overflowResp.status}`);
 
   // Clean up
-  await fetch(`${SUPABASE_URL}/rest/v1/league_members?league_id=eq.${league.id}`, { method: "DELETE", headers: tomHeaders });
-  await fetch(`${SUPABASE_URL}/rest/v1/leagues?id=eq.${league.id}`, { method: "DELETE", headers: tomHeaders });
+  await fetch(`${SB_URL}/rest/v1/league_members?league_id=eq.${league.id}`, { method: "DELETE", headers: tomHeaders });
+  await fetch(`${SB_URL}/rest/v1/leagues?id=eq.${league.id}`, { method: "DELETE", headers: tomHeaders });
 }
 
 async function journey7_RLSIsolation() {
@@ -284,21 +297,21 @@ async function journey7_RLSIsolation() {
   console.log(`\n🧪 ${currentJourney}`);
 
   // Isaiah is in "Acme Corp" league
-  const isaiahHeaders = await authHeaders("isaiah@example.com", "worldcup2026");
+  const isaiahHeaders = await authHeaders("isaiah@example.com", TEST_PASS);
 
   // Zoe is in "Acme Corp" too
-  const zoeHeaders = await authHeaders("zoe@example.com", "worldcup2026");
+  const zoeHeaders = await authHeaders("zoe@example.com", TEST_PASS);
 
   // Isaiah's leagues
-  const isaiahLeagues = await (await fetch(`${SUPABASE_URL}/rest/v1/leagues?select=name`, { headers: isaiahHeaders })).json();
+  const isaiahLeagues = await (await fetch(`${SB_URL}/rest/v1/leagues?select=name`, { headers: isaiahHeaders })).json();
   log("Isaiah sees his leagues", isaiahLeagues.length >= 1, `Sees: ${isaiahLeagues.length}`);
 
   // Isaiah's draft picks
-  const isaiahPicks = await (await fetch(`${SUPABASE_URL}/rest/v1/draft_picks?user_id=eq.a0000001-0000-0000-0000-000000000001&select=pick_type`, { headers: isaiahHeaders })).json();
+  const isaiahPicks = await (await fetch(`${SB_URL}/rest/v1/draft_picks?user_id=eq.a0000001-0000-0000-0000-000000000001&select=pick_type`, { headers: isaiahHeaders })).json();
   log("Isaiah sees his draft picks", isaiahPicks.length > 0, `Picks: ${isaiahPicks.length}`);
 
   // Zoe can't see Isaiah's picks... wait, they're in the same league, so she should
-  const zoeSeesPicks = await (await fetch(`${SUPABASE_URL}/rest/v1/draft_picks?user_id=eq.a0000001-0000-0000-0000-000000000001&select=pick_type`, { headers: zoeHeaders })).json();
+  const zoeSeesPicks = await (await fetch(`${SB_URL}/rest/v1/draft_picks?user_id=eq.a0000001-0000-0000-0000-000000000001&select=pick_type`, { headers: zoeHeaders })).json();
   log("Zoe (same league) can see Isaiah's picks", zoeSeesPicks.length > 0, `Sees: ${zoeSeesPicks.length}`);
 }
 
@@ -306,15 +319,15 @@ async function journey8_HotTakesCRUD() {
   currentJourney = "8. Hot takes: create, read, vote";
   console.log(`\n🧪 ${currentJourney}`);
 
-  const isaiahHeaders = await authHeaders("isaiah@example.com", "worldcup2026");
+  const isaiahHeaders = await authHeaders("isaiah@example.com", TEST_PASS);
 
   // Get Isaiah's league
-  const leagues = await (await fetch(`${SUPABASE_URL}/rest/v1/league_members?user_id=eq.a0000001-0000-0000-0000-000000000001&select=league_id`, { headers: isaiahHeaders })).json();
+  const leagues = await (await fetch(`${SB_URL}/rest/v1/league_members?user_id=eq.a0000001-0000-0000-0000-000000000001&select=league_id`, { headers: isaiahHeaders })).json();
   if (leagues.length === 0) { log("Has a league", false, "No leagues found"); return; }
   const leagueId = leagues[0].league_id;
 
   // Create a hot take
-  const createResp = await fetch(`${SUPABASE_URL}/rest/v1/hot_takes`, {
+  const createResp = await fetch(`${SB_URL}/rest/v1/hot_takes`, {
     method: "POST",
     headers: { ...isaiahHeaders, "Prefer": "return=representation" },
     body: JSON.stringify({
@@ -331,12 +344,12 @@ async function journey8_HotTakesCRUD() {
   if (!created) return;
 
   // Read it back
-  const readResp = await (await fetch(`${SUPABASE_URL}/rest/v1/hot_takes?id=eq.${take[0].id}&select=text`, { headers: isaiahHeaders })).json();
+  const readResp = await (await fetch(`${SB_URL}/rest/v1/hot_takes?id=eq.${take[0].id}&select=text`, { headers: isaiahHeaders })).json();
   log("Hot take readable", readResp.length === 1, `Found: ${readResp.length}`);
 
   // Vote on it (as Sarah)
-  const sarahHeaders = await authHeaders("sarah@example.com", "worldcup2026");
-  const voteResp = await fetch(`${SUPABASE_URL}/rest/v1/hot_take_votes`, {
+  const sarahHeaders = await authHeaders("sarah@example.com", TEST_PASS);
+  const voteResp = await fetch(`${SB_URL}/rest/v1/hot_take_votes`, {
     method: "POST",
     headers: sarahHeaders,
     body: JSON.stringify({ hot_take_id: take[0].id, user_id: "a0000001-0000-0000-0000-000000000002", vote: "back" }),
@@ -344,17 +357,17 @@ async function journey8_HotTakesCRUD() {
   log("Sarah can vote on take", voteResp.status === 201, `Status: ${voteResp.status}`);
 
   // Clean up
-  await fetch(`${SUPABASE_URL}/rest/v1/hot_take_votes?hot_take_id=eq.${take[0].id}`, { method: "DELETE", headers: isaiahHeaders });
-  await fetch(`${SUPABASE_URL}/rest/v1/hot_takes?id=eq.${take[0].id}`, { method: "DELETE", headers: isaiahHeaders });
+  await fetch(`${SB_URL}/rest/v1/hot_take_votes?hot_take_id=eq.${take[0].id}`, { method: "DELETE", headers: isaiahHeaders });
+  await fetch(`${SB_URL}/rest/v1/hot_takes?id=eq.${take[0].id}`, { method: "DELETE", headers: isaiahHeaders });
 }
 
 async function journey9_FeedbackSubmission() {
   currentJourney = "9. Feedback widget: submit and verify";
   console.log(`\n🧪 ${currentJourney}`);
 
-  const isaiahHeaders = await authHeaders("isaiah@example.com", "worldcup2026");
+  const isaiahHeaders = await authHeaders("isaiah@example.com", TEST_PASS);
 
-  const submitResp = await fetch(`${SUPABASE_URL}/rest/v1/feedback`, {
+  const submitResp = await fetch(`${SB_URL}/rest/v1/feedback`, {
     method: "POST",
     headers: { ...isaiahHeaders, "Prefer": "return=representation" },
     body: JSON.stringify({
@@ -371,7 +384,7 @@ async function journey9_FeedbackSubmission() {
 
   // Clean up
   if (created) {
-    await fetch(`${SUPABASE_URL}/rest/v1/feedback?id=eq.${feedback[0].id}`, { method: "DELETE", headers: isaiahHeaders });
+    await fetch(`${SB_URL}/rest/v1/feedback?id=eq.${feedback[0].id}`, { method: "DELETE", headers: isaiahHeaders });
   }
 }
 
@@ -379,18 +392,18 @@ async function journey10_AllegianceAndDraftPicks() {
   currentJourney = "10. Allegiance + draft picks readable";
   console.log(`\n🧪 ${currentJourney}`);
 
-  const isaiahHeaders = await authHeaders("isaiah@example.com", "worldcup2026");
+  const isaiahHeaders = await authHeaders("isaiah@example.com", TEST_PASS);
 
   // Check allegiance
-  const allegiances = await (await fetch(`${SUPABASE_URL}/rest/v1/allegiances?user_id=eq.a0000001-0000-0000-0000-000000000001&select=country_code`, { headers: isaiahHeaders })).json();
+  const allegiances = await (await fetch(`${SB_URL}/rest/v1/allegiances?user_id=eq.a0000001-0000-0000-0000-000000000001&select=country_code`, { headers: isaiahHeaders })).json();
   log("Allegiance exists", allegiances.length > 0, `Allegiance: ${allegiances[0]?.country_code || "none"}`);
 
   // Check country draft picks
-  const countryPicks = await (await fetch(`${SUPABASE_URL}/rest/v1/draft_picks?user_id=eq.a0000001-0000-0000-0000-000000000001&pick_type=eq.country&select=country_code`, { headers: isaiahHeaders })).json();
+  const countryPicks = await (await fetch(`${SB_URL}/rest/v1/draft_picks?user_id=eq.a0000001-0000-0000-0000-000000000001&pick_type=eq.country&select=country_code`, { headers: isaiahHeaders })).json();
   log("Country picks exist", countryPicks.length > 0, `Countries: ${countryPicks.length}`);
 
   // Check player draft picks
-  const playerPicks = await (await fetch(`${SUPABASE_URL}/rest/v1/draft_picks?user_id=eq.a0000001-0000-0000-0000-000000000001&pick_type=eq.player&select=player_id`, { headers: isaiahHeaders })).json();
+  const playerPicks = await (await fetch(`${SB_URL}/rest/v1/draft_picks?user_id=eq.a0000001-0000-0000-0000-000000000001&pick_type=eq.player&select=player_id`, { headers: isaiahHeaders })).json();
   log("Player picks exist", playerPicks.length > 0, `Players: ${playerPicks.length}`);
 }
 
@@ -398,14 +411,14 @@ async function journey11_DailyPicksFlow() {
   currentJourney = "11. Daily picks: submit and read";
   console.log(`\n🧪 ${currentJourney}`);
 
-  const isaiahHeaders = await authHeaders("isaiah@example.com", "worldcup2026");
-  const leagues = await (await fetch(`${SUPABASE_URL}/rest/v1/league_members?user_id=eq.a0000001-0000-0000-0000-000000000001&select=league_id`, { headers: isaiahHeaders })).json();
+  const isaiahHeaders = await authHeaders("isaiah@example.com", TEST_PASS);
+  const leagues = await (await fetch(`${SB_URL}/rest/v1/league_members?user_id=eq.a0000001-0000-0000-0000-000000000001&select=league_id`, { headers: isaiahHeaders })).json();
   if (leagues.length === 0) { log("Has a league", false, "No leagues"); return; }
   const leagueId = leagues[0].league_id;
   const today = new Date().toISOString().split("T")[0];
 
   // Submit daily pick
-  const submitResp = await fetch(`${SUPABASE_URL}/rest/v1/daily_picks`, {
+  const submitResp = await fetch(`${SB_URL}/rest/v1/daily_picks`, {
     method: "POST",
     headers: { ...isaiahHeaders, "Prefer": "return=representation" },
     body: JSON.stringify({
@@ -422,11 +435,11 @@ async function journey11_DailyPicksFlow() {
 
   // Read it back
   if (created) {
-    const readResp = await (await fetch(`${SUPABASE_URL}/rest/v1/daily_picks?pick_date=eq.${today}&user_id=eq.a0000001-0000-0000-0000-000000000001&select=country_of_the_day,player_of_the_day`, { headers: isaiahHeaders })).json();
+    const readResp = await (await fetch(`${SB_URL}/rest/v1/daily_picks?pick_date=eq.${today}&user_id=eq.a0000001-0000-0000-0000-000000000001&select=country_of_the_day,player_of_the_day`, { headers: isaiahHeaders })).json();
     log("Daily pick readable", readResp.length === 1, `Country: ${readResp[0]?.country_of_the_day}, Player: ${readResp[0]?.player_of_the_day}`);
 
     // Clean up
-    await fetch(`${SUPABASE_URL}/rest/v1/daily_picks?pick_date=eq.${today}&user_id=eq.a0000001-0000-0000-0000-000000000001`, { method: "DELETE", headers: isaiahHeaders });
+    await fetch(`${SB_URL}/rest/v1/daily_picks?pick_date=eq.${today}&user_id=eq.a0000001-0000-0000-0000-000000000001`, { method: "DELETE", headers: isaiahHeaders });
   }
 }
 
@@ -434,12 +447,12 @@ async function journey12_PredictionsFlow() {
   currentJourney = "12. Predictions: submit and read";
   console.log(`\n🧪 ${currentJourney}`);
 
-  const isaiahHeaders = await authHeaders("isaiah@example.com", "worldcup2026");
-  const leagues = await (await fetch(`${SUPABASE_URL}/rest/v1/league_members?user_id=eq.a0000001-0000-0000-0000-000000000001&select=league_id`, { headers: isaiahHeaders })).json();
+  const isaiahHeaders = await authHeaders("isaiah@example.com", TEST_PASS);
+  const leagues = await (await fetch(`${SB_URL}/rest/v1/league_members?user_id=eq.a0000001-0000-0000-0000-000000000001&select=league_id`, { headers: isaiahHeaders })).json();
   if (leagues.length === 0) { log("Has a league", false, "No leagues"); return; }
   const leagueId = leagues[0].league_id;
 
-  const submitResp = await fetch(`${SUPABASE_URL}/rest/v1/predictions`, {
+  const submitResp = await fetch(`${SB_URL}/rest/v1/predictions`, {
     method: "POST",
     headers: { ...isaiahHeaders, "Prefer": "return=representation" },
     body: JSON.stringify({
@@ -457,7 +470,7 @@ async function journey12_PredictionsFlow() {
 
   if (created) {
     // Clean up
-    await fetch(`${SUPABASE_URL}/rest/v1/predictions?match_id=eq.qa-test-match&user_id=eq.a0000001-0000-0000-0000-000000000001`, { method: "DELETE", headers: isaiahHeaders });
+    await fetch(`${SB_URL}/rest/v1/predictions?match_id=eq.qa-test-match&user_id=eq.a0000001-0000-0000-0000-000000000001`, { method: "DELETE", headers: isaiahHeaders });
   }
 }
 
@@ -465,8 +478,8 @@ async function journey13_ProfileCreatedOnSignup() {
   currentJourney = "13. Profile auto-created on signup";
   console.log(`\n🧪 ${currentJourney}`);
 
-  const isaiahHeaders = await authHeaders("isaiah@example.com", "worldcup2026");
-  const profiles = await (await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.a0000001-0000-0000-0000-000000000001&select=name`, { headers: isaiahHeaders })).json();
+  const isaiahHeaders = await authHeaders("isaiah@example.com", TEST_PASS);
+  const profiles = await (await fetch(`${SB_URL}/rest/v1/profiles?id=eq.a0000001-0000-0000-0000-000000000001&select=name`, { headers: isaiahHeaders })).json();
   log("Profile exists", profiles.length === 1, `Name: ${profiles[0]?.name || "missing"}`);
 }
 
@@ -476,7 +489,7 @@ async function journey14_SitePerformance() {
 
   for (const path of ["/", "/try", "/admin"]) {
     const start = Date.now();
-    await fetch(`${SITE_URL}${path}`);
+    await fetch(`${APP_URL}${path}`);
     const ms = Date.now() - start;
     log(`${path} responds in <3s`, ms < 3000, `${ms}ms`);
   }
@@ -487,18 +500,18 @@ async function journey15_InviteCodeValidation() {
   console.log(`\n🧪 ${currentJourney}`);
 
   // Valid format, non-existent code
-  const resp1 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
+  const resp1 = await fetch(`${SB_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
     method: "POST",
-    headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json" },
+    headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({ code: "DOESNOTEXIST" }),
   });
   const data1 = await resp1.json();
   log("Non-existent code returns empty", Array.isArray(data1) && data1.length === 0, `Result: ${JSON.stringify(data1)}`);
 
   // Known code returns league
-  const resp2 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
+  const resp2 = await fetch(`${SB_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
     method: "POST",
-    headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json" },
+    headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({ code: "ACME2026WCUP" }),
   });
   const data2 = await resp2.json();

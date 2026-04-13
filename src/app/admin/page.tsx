@@ -314,8 +314,8 @@ function AdminContent() {
               )}
             </div>
 
-            {/* Dev Login */}
-            {process.env.NODE_ENV === "development" && (
+            {/* Dev Login — only in development, password from env var */}
+            {process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_TEST_PASSWORD && (
               <div className="rounded-2xl bg-[var(--surface)] p-5 border border-[var(--electric)]/20">
                 <div className="flex items-center gap-2 mb-3">
                   <span>🧪</span>
@@ -328,7 +328,10 @@ function AdminContent() {
                       key={name}
                       onClick={async () => {
                         setAuthError(null);
-                        const { error } = await signInWithPassword(`${name.toLowerCase()}@example.com`, "worldcup2026");
+                        const { error } = await signInWithPassword(
+                          `${name.toLowerCase()}@example.com`,
+                          process.env.NEXT_PUBLIC_DEV_TEST_PASSWORD!
+                        );
                         if (error) setAuthError(`Failed: ${name}`);
                       }}
                       className="px-2 py-1.5 rounded-lg bg-[var(--surface-light)] text-xs font-semibold hover:bg-[var(--electric)]/10 transition-colors"
