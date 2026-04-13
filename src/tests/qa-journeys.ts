@@ -452,6 +452,9 @@ async function journey12_PredictionsFlow() {
   if (leagues.length === 0) { log("Has a league", false, "No leagues"); return; }
   const leagueId = leagues[0].league_id;
 
+  // Clean up any leftover from previous runs
+  await fetch(`${SB_URL}/rest/v1/predictions?match_id=eq.qa-test-match&user_id=eq.a0000001-0000-0000-0000-000000000001`, { method: "DELETE", headers: isaiahHeaders });
+
   const submitResp = await fetch(`${SB_URL}/rest/v1/predictions`, {
     method: "POST",
     headers: { ...isaiahHeaders, "Prefer": "return=representation" },
@@ -499,23 +502,34 @@ async function journey15_InviteCodeValidation() {
   currentJourney = "15. Invite code validation";
   console.log(`\n🧪 ${currentJourney}`);
 
-  // Valid format, non-existent code
-  const resp1 = await fetch(`${SB_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
+  const headers = await authHeaders("isaiah@example.com", TEST_PASS);
+
+  // Unauthenticated lookup should fail (security fix)
+  const unauthResp = await fetch(`${SB_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
     method: "POST",
     headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ code: "ACME2026WCUP" }),
+  });
+  const unauthData = await unauthResp.json();
+  log("Unauthenticated lookup returns empty", Array.isArray(unauthData) && unauthData.length === 0, `Result: ${JSON.stringify(unauthData).slice(0, 80)}`);
+
+  // Non-existent code (authenticated)
+  const resp1 = await fetch(`${SB_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ code: "DOESNOTEXIST" }),
   });
   const data1 = await resp1.json();
   log("Non-existent code returns empty", Array.isArray(data1) && data1.length === 0, `Result: ${JSON.stringify(data1)}`);
 
-  // Known code returns league
+  // Known code (authenticated) returns league
   const resp2 = await fetch(`${SB_URL}/rest/v1/rpc/lookup_league_by_invite_code`, {
     method: "POST",
-    headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ code: "ACME2026WCUP" }),
   });
   const data2 = await resp2.json();
-  log("Known code returns league", data2.length === 1, `Name: ${data2[0]?.name || "none"}`);
+  log("Known code returns league (authenticated)", data2.length === 1, `Name: ${data2[0]?.name || "none"}`);
 }
 
 // ─── Runner ──────────────────────────────────────────────────
