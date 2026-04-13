@@ -99,6 +99,17 @@ export async function getMyLeagues() {
   return data?.map((m) => (m as Record<string, unknown>).leagues) ?? [];
 }
 
+export async function getLeague(leagueId: string) {
+  const lid = leagueIdSchema.parse(leagueId);
+  const { supabase } = await getAuthenticatedUser();
+  const { data } = await supabase
+    .from("leagues")
+    .select("*")
+    .eq("id", lid)
+    .single();
+  return data;
+}
+
 export async function getLeagueMembers(leagueId: string) {
   const lid = leagueIdSchema.parse(leagueId);
   const { supabase } = await getAuthenticatedUser();

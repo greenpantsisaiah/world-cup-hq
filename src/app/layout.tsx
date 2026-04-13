@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/nav";
 import { AuthProvider } from "@/components/auth-provider";
+import { LeagueProvider } from "@/components/league-provider";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import "./globals.css";
 
@@ -34,11 +35,13 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased dark">
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AuthProvider>
-          <Nav />
-          <main className="flex-1 pt-4 pb-20 md:pt-20 md:pb-8 stadium-bg">
-            <div className="max-w-5xl mx-auto px-4">{children}</div>
-          </main>
-          <FeedbackWidget />
+          <LeagueProvider>
+            <Nav />
+            <main className="flex-1 pt-4 pb-20 md:pt-20 md:pb-8 stadium-bg">
+              <div className="max-w-5xl mx-auto px-4">{children}</div>
+            </main>
+            <FeedbackWidget />
+          </LeagueProvider>
         </AuthProvider>
       </body>
     </html>
