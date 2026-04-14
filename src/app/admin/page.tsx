@@ -538,6 +538,60 @@ function AdminContent() {
                 <div className="text-[10px] text-[var(--muted)] mt-1">See how your league plays out</div>
               </Link>
             </div>
+
+            {/* Mock Tournament — admin only */}
+            {league && user && league.admin_id === user.id && (
+              <div className="rounded-2xl bg-[var(--surface)] p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🧪</span>
+                  <span className="text-sm font-bold text-[var(--electric)]">Test Mode</span>
+                </div>
+                <p className="text-xs text-[var(--muted)]">
+                  Run a mock tournament with simulated data to test the full experience. Your league and members stay — only game data is affected.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      if (!confirm("This will populate your league with simulated draft picks, matches, predictions, and scores. Continue?")) return;
+                      setCreateError(null);
+                      setCreating(true);
+                      try {
+                        const { runMockTournament } = await import("@/lib/mock-tournament");
+                        const result = await runMockTournament(league.id);
+                        alert(`Mock tournament complete! ${result.matches} matches scored for ${result.members} members. Check Draft, My Team, Rankings, and Daily pages.`);
+                        window.location.reload();
+                      } catch (e) {
+                        setCreateError("Failed to run mock tournament");
+                      }
+                      setCreating(false);
+                    }}
+                    disabled={creating}
+                    className="flex-1 py-2.5 bg-[var(--electric)] text-white font-bold rounded-xl hover:opacity-90 text-sm disabled:opacity-50"
+                  >
+                    {creating ? "Running..." : "🧪 Run Mock Tournament"}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("This will wipe ALL game data (draft, picks, predictions, scores) but keep your league and members. Are you sure?")) return;
+                      setCreating(true);
+                      try {
+                        const { resetLeague } = await import("@/lib/mock-tournament");
+                        await resetLeague(league.id);
+                        alert("League reset to pre-tournament state. All game data has been cleared.");
+                        window.location.reload();
+                      } catch {
+                        setCreateError("Failed to reset league");
+                      }
+                      setCreating(false);
+                    }}
+                    disabled={creating}
+                    className="px-4 py-2.5 bg-[var(--crimson)]/10 text-[var(--crimson)] font-bold rounded-xl hover:bg-[var(--crimson)]/20 text-sm disabled:opacity-50"
+                  >
+                    Reset League
+                  </button>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
