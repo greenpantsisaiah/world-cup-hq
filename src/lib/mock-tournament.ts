@@ -17,7 +17,28 @@ export async function runMockTournament(leagueId: string) {
   const { data: league } = await supabase.from("leagues").select("*").eq("id", leagueId).single();
   if (!league || league.admin_id !== user.id) throw new Error("Only admin can run mock");
 
-  // Get members
+  // Get existing members
+  const { data: existingMembers } = await supabase.from("league_members").select("user_id").eq("league_id", leagueId);
+  if (!existingMembers) throw new Error("Failed to load members");
+
+  // Add bot players to fill out the league (up to 8 total)
+  const BOT_NAMES = ["Bot Sarah", "Bot Marcus", "Bot Lisa", "Bot Dave", "Bot Emma", "Bot Jake"];
+  const botsNeeded = Math.max(0, Math.min(6, (league.max_participants || 8) - existingMembers.length));
+  const botIds: string[] = [];
+
+  for (let i = 0; i < botsNeeded; i++) {
+    const botId = crypto.randomUUID();
+    // Create profile (no auth.users entry — bots don't log in)
+    await supabase.from("profiles").insert({
+      id: botId, name: BOT_NAMES[i] || `Bot ${i + 1}`,
+    });
+    // Join league
+    await supabase.from("league_members").insert({
+      league_id: leagueId, user_id: botId,
+    });
+    botIds.push(botId);
+  }
+
   const { data: members } = await supabase.from("league_members").select("user_id").eq("league_id", leagueId);
   if (!members || members.length < 2) throw new Error("Need at least 2 members");
 
@@ -184,15 +205,38 @@ export async function runMockTournament(leagueId: string) {
     await scoreCompletedMatch(matchId, leagueId);
   }
 
-  // ── 8. Create a hot take ──
-  await supabase.from("hot_takes").insert({
-    league_id: leagueId, author_id: memberIds[0],
-    text: "Argentina will win the whole tournament",
-    locks_at: new Date(Date.now() + 30 * 86400000).toISOString(),
-    status: "open",
-  });
+  // ── 8. Create hot takes from different members ──
+  const hotTakeTexts = [
+    "Argentina will win the whole tournament",
+    "France won't make it past the quarterfinals",
+    "An African team will reach the semifinals",
+    "There will be a red card in the final",
+  ];
+  for (let i = 0; i < Math.min(hotTakeTexts.length, memberIds.length); i++) {
+    await supabase.from("hot_takes").insert({
+      league_id: leagueId, author_id: memberIds[i],
+      text: hotTakeTexts[i],
+      locks_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+      status: "open",
+    });
+  }
 
-  return { matches: matchIds.length, members: memberIds.length };
+  // Add some votes on hot takes
+  const { data: takes } = await supabase.from("hot_takes").select("id").eq("league_id", leagueId);
+  if (takes) {
+    for (const take of takes) {
+      // Random subset of members vote
+      const voters = memberIds.filter(() => Math.random() > 0.4);
+      for (const voterId of voters) {
+        await supabase.from("hot_take_votes").upsert({
+          hot_take_id: take.id, user_id: voterId,
+          vote: Math.random() > 0.5 ? "back" : "fade",
+        }, { onConflict: "hot_take_id,user_id" });
+      }
+    }
+  }
+
+  return { matches: matchIds.length, members: memberIds.length, bots: botsNeeded };
 }
 
 /**
@@ -226,15 +270,29 @@ export async function resetLeague(leagueId: string) {
     prediction_streak: 0,
   }).eq("league_id", leagueId);
 
+  // Remove bot players (profiles with "Bot " prefix that are league members)
+  const { data: allMembers } = await supabase
+    .from("league_members")
+    .select("user_id, profiles(name)")
+    .eq("league_id", leagueId);
+
+  if (allMembers) {
+    for (const m of allMembers) {
+      const name = (m as Record<string, unknown>).profiles as { name: string } | null;
+      if (name?.name?.startsWith("Bot ")) {
+        await supabase.from("user_scores").delete().eq("league_id", leagueId).eq("user_id", m.user_id);
+        await supabase.from("league_members").delete().eq("league_id", leagueId).eq("user_id", m.user_id);
+        await supabase.from("profiles").delete().eq("id", m.user_id);
+      }
+    }
+  }
+
   // Reset league draft state
   await supabase.from("leagues").update({
     draft_status: "pre_draft",
     draft_order: [],
     current_pick_number: 0,
   }).eq("id", leagueId);
-
-  // Note: matches/match_events are global (not league-scoped), so we don't delete them
-  // They're shared across all leagues
 
   return { success: true };
 }
