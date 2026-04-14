@@ -14,6 +14,7 @@ import {
   updateDraftStatus,
   setDraftOrder,
   revealAllegiances,
+  setDraftDate,
 } from "@/lib/supabase-actions";
 import { WORLD_CUP_COUNTRIES } from "@/data/countries";
 import { PLAYER_POOL } from "@/data/players";
@@ -61,6 +62,7 @@ export default function DraftPage() {
   const leagueAny = league as unknown as Record<string, unknown> | null;
   const draftOrder = (leagueAny?.draft_order as string[]) || [];
   const currentPickNumber = (leagueAny?.current_pick_number as number) || 0;
+  const draftDate = leagueAny?.draft_date as string | null;
   const countriesPerPerson = league?.countries_per_person || 3;
   const playersPerPerson = league?.players_per_person || 5;
 
@@ -233,10 +235,58 @@ export default function DraftPage() {
                 <div className="space-y-4">
                   <div className="rounded-2xl bg-[var(--surface)] p-8 text-center space-y-4">
                     <div className="text-5xl">🌙</div>
-                    <h2 className="text-2xl font-black">Draft Night is Coming</h2>
-                    <p className="text-[var(--muted)]">{members.length} player{members.length !== 1 ? "s" : ""} in the league</p>
+                    <h2 className="text-2xl font-black">Draft Night</h2>
+
+                    {/* Draft date — countdown or set it */}
+                    {draftDate ? (
+                      <div>
+                        <div className="text-sm text-[var(--muted)] mb-1">
+                          {new Date(draftDate).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                          {" at "}
+                          {new Date(draftDate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        </div>
+                        {new Date(draftDate) > new Date() ? (
+                          <div className="text-2xl font-black text-[var(--gold)]">
+                            {(() => {
+                              const diff = new Date(draftDate).getTime() - Date.now();
+                              const days = Math.floor(diff / 86400000);
+                              const hours = Math.floor((diff % 86400000) / 3600000);
+                              if (days > 0) return `${days}d ${hours}h away`;
+                              if (hours > 0) return `${hours}h ${Math.floor((diff % 3600000) / 60000)}m away`;
+                              return "Starting soon!";
+                            })()}
+                          </div>
+                        ) : (
+                          <div className="text-lg font-bold text-[var(--emerald)]">Draft night is NOW!</div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-[var(--muted)]">
+                        {isAdmin ? "Set a date so your league knows when to show up" : "Date not set yet — ask your league admin"}
+                      </p>
+                    )}
+
+                    <p className="text-sm text-[var(--muted)]">{members.length} player{members.length !== 1 ? "s" : ""} in the league</p>
+
                     {isAdmin ? (
                       <div className="space-y-3 pt-4">
+                        {/* Date picker */}
+                        <div>
+                          <label className="text-[10px] text-[var(--muted)] uppercase tracking-wider block mb-1">Draft Date & Time</label>
+                          <input
+                            type="datetime-local"
+                            value={draftDate ? new Date(draftDate).toISOString().slice(0, 16) : ""}
+                            onChange={async (e) => {
+                              if (!leagueId || !e.target.value) return;
+                              try {
+                                await setDraftDate(leagueId, new Date(e.target.value).toISOString());
+                                await refreshLeague();
+                              } catch { setError("Failed to set draft date"); }
+                            }}
+                            className="w-full px-4 py-2.5 bg-[var(--surface-light)] border border-[var(--surface-border)] rounded-xl text-sm text-center focus:outline-none focus:border-[var(--gold)]/50"
+                          />
+                        </div>
+
                         <button onClick={handleRandomizeOrder} className="w-full py-3 bg-[var(--surface-light)] rounded-xl font-bold hover:bg-[var(--surface-border)]">🎲 Randomize Draft Order</button>
                         {draftOrder.length > 0 && (
                           <>
@@ -245,7 +295,11 @@ export default function DraftPage() {
                           </>
                         )}
                       </div>
-                    ) : <p className="text-sm text-[var(--muted)]">Waiting for admin to start the draft...</p>}
+                    ) : (
+                      <p className="text-sm text-[var(--muted)]">
+                        {draftDate ? "Be ready when the countdown hits zero!" : "Waiting for admin to schedule draft night..."}
+                      </p>
+                    )}
                   </div>
 
                   {/* Who's in the league */}

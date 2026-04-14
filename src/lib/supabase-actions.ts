@@ -164,6 +164,18 @@ export async function updateDraftStatus(leagueId: string, status: string) {
   if (error) throw new Error("Failed to update draft status");
 }
 
+export async function setDraftDate(leagueId: string, draftDate: string) {
+  const lid = leagueIdSchema.parse(leagueId);
+  const { supabase, user } = await getAuthenticatedUser();
+  await verifyLeagueAdmin(supabase, user.id, lid);
+
+  const { error } = await supabase
+    .from("leagues")
+    .update({ draft_date: draftDate })
+    .eq("id", lid);
+  if (error) throw new Error("Failed to set draft date");
+}
+
 // ─── Draft Actions ───────────────────────────────────────────
 
 export async function setDraftOrder(leagueId: string, order: string[]) {
