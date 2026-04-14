@@ -46,7 +46,7 @@ type DraftTab = "live" | "my-team" | "board";
 
 export default function DraftPage() {
   const { user } = useAuth();
-  const { league, leagueId, members, isAdmin, refreshLeague } = useLeague();
+  const { league, leagueId, members, isAdmin, refreshLeague, allLeagues, switchLeague } = useLeague();
 
   const [tab, setTab] = useState<DraftTab>("live");
   const [picks, setPicks] = useState<DraftPickRow[]>([]);
@@ -178,11 +178,24 @@ export default function DraftPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
+      {/* League context bar */}
+      {allLeagues.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {allLeagues.map((l) => (
+            <button key={l.id} onClick={() => switchLeague(l.id)}
+              className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                leagueId === l.id ? "bg-[var(--gold)]/10 text-[var(--gold)] ring-1 ring-[var(--gold)]/30" : "bg-[var(--surface)] text-[var(--muted)]"
+              }`}>{l.name}</button>
+          ))}
+        </div>
+      )}
+
+      {/* League + members info */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
           <h1 className="text-3xl font-black"><span className="text-shimmer">The Draft Room</span></h1>
           <p className="text-[var(--muted)] text-sm mt-1">
-            {draftStatus === "pre_draft" && "Waiting for draft night"}
+            {league?.name} · {draftStatus === "pre_draft" && "Waiting for draft night"}
             {draftStatus === "allegiance" && "Pick your heart team — blind picks!"}
             {draftStatus === "country_draft" && "Snake draft — pick your countries"}
             {draftStatus === "player_draft" && "Snake draft — build your squad"}
@@ -217,21 +230,43 @@ export default function DraftPage() {
             <motion.div key="live" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               {/* PRE-DRAFT */}
               {draftStatus === "pre_draft" && (
-                <div className="rounded-2xl bg-[var(--surface)] p-8 text-center space-y-4">
-                  <div className="text-5xl">🌙</div>
-                  <h2 className="text-2xl font-black">Draft Night is Coming</h2>
-                  <p className="text-[var(--muted)]">{members.length} players in the league</p>
-                  {isAdmin ? (
-                    <div className="space-y-3 pt-4">
-                      <button onClick={handleRandomizeOrder} className="w-full py-3 bg-[var(--surface-light)] rounded-xl font-bold hover:bg-[var(--surface-border)]">🎲 Randomize Draft Order</button>
-                      {draftOrder.length > 0 && (
-                        <>
-                          <div className="text-xs text-[var(--muted)]">Order: {draftOrder.map((id, i) => `${i + 1}. ${getMemberName(id)}`).join(", ")}</div>
-                          <button onClick={() => handleAdvance("allegiance")} className="w-full py-3 bg-[var(--gold)] text-[var(--background)] rounded-xl font-black hover:bg-[var(--gold-dim)]">Start Allegiance Picks →</button>
-                        </>
-                      )}
+                <div className="space-y-4">
+                  <div className="rounded-2xl bg-[var(--surface)] p-8 text-center space-y-4">
+                    <div className="text-5xl">🌙</div>
+                    <h2 className="text-2xl font-black">Draft Night is Coming</h2>
+                    <p className="text-[var(--muted)]">{members.length} player{members.length !== 1 ? "s" : ""} in the league</p>
+                    {isAdmin ? (
+                      <div className="space-y-3 pt-4">
+                        <button onClick={handleRandomizeOrder} className="w-full py-3 bg-[var(--surface-light)] rounded-xl font-bold hover:bg-[var(--surface-border)]">🎲 Randomize Draft Order</button>
+                        {draftOrder.length > 0 && (
+                          <>
+                            <div className="text-xs text-[var(--muted)]">Order: {draftOrder.map((id, i) => `${i + 1}. ${getMemberName(id)}`).join(", ")}</div>
+                            <button onClick={() => handleAdvance("allegiance")} className="w-full py-3 bg-[var(--gold)] text-[var(--background)] rounded-xl font-black hover:bg-[var(--gold-dim)]">Start Allegiance Picks →</button>
+                          </>
+                        )}
+                      </div>
+                    ) : <p className="text-sm text-[var(--muted)]">Waiting for admin to start the draft...</p>}
+                  </div>
+
+                  {/* Who's in the league */}
+                  <div className="rounded-2xl bg-[var(--surface)] p-5">
+                    <div className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-3">
+                      Your Competition · {members.length} player{members.length !== 1 ? "s" : ""}
                     </div>
-                  ) : <p className="text-sm text-[var(--muted)]">Waiting for admin to start the draft...</p>}
+                    <div className="flex flex-wrap gap-2">
+                      {members.map((m) => (
+                        <div key={m.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                          m.id === user?.id ? "bg-[var(--gold)]/10 border border-[var(--gold)]/20" : "bg-[var(--surface-light)]"
+                        }`}>
+                          <div className="w-6 h-6 rounded-full bg-[var(--surface-border)] flex items-center justify-center text-[10px] font-bold">
+                            {m.name?.[0]?.toUpperCase()}
+                          </div>
+                          <span className="font-semibold">{m.name}</span>
+                          {m.id === user?.id && <span className="text-[8px] text-[var(--gold)]">YOU</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
