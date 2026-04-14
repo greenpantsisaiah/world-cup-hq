@@ -3,6 +3,7 @@ import { Nav } from "@/components/nav";
 import { AuthProvider } from "@/components/auth-provider";
 import { LeagueProvider } from "@/components/league-provider";
 import { FeedbackWidget } from "@/components/feedback-widget";
+import { OnboardingGate } from "@/components/onboarding-gate";
 import "./globals.css";
 
 import type { Viewport } from "next";
@@ -41,6 +42,7 @@ export default function RootLayout({
               <div className="max-w-5xl mx-auto px-4">{children}</div>
             </main>
             <FeedbackWidget />
+            <OnboardingGate />
           </LeagueProvider>
         </AuthProvider>
       </body>
