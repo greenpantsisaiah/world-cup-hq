@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "./auth-provider";
+import { useLeague } from "./league-provider";
 
 const NAV_ITEMS = [
   { href: "/draft", label: "Draft", icon: "📋" },
@@ -16,11 +17,15 @@ const NAV_ITEMS = [
 export function Nav() {
   const pathname = usePathname();
   const { user, profile } = useAuth();
+  const { league } = useLeague();
 
   // Hide nav on try/simulation pages
   if (pathname.startsWith("/try")) return null;
 
   const initial = profile?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "?";
+  const draftStatus = league?.draft_status || "pre_draft";
+  const isDraftActive = ["allegiance", "country_draft", "player_draft"].includes(draftStatus);
+  const isDraftPending = draftStatus === "pre_draft" && !!league;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--surface-border)] md:top-0 md:bottom-auto md:border-b md:border-t-0 safe-area-bottom">
@@ -39,11 +44,16 @@ export function Nav() {
           <div className="flex items-center justify-around w-full md:w-auto md:gap-1">
             {NAV_ITEMS.map((item) => {
               const isActive = pathname === item.href;
+              const isDraftItem = item.href === "/draft";
+              const showDraftPulse = isDraftItem && (isDraftActive || isDraftPending);
+
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="relative flex flex-col md:flex-row items-center gap-0 md:gap-2 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-[10px] md:text-sm transition-colors"
+                  className={`relative flex flex-col md:flex-row items-center gap-0 md:gap-2 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-[10px] md:text-sm transition-colors ${
+                    isDraftItem && isDraftActive && !isActive ? "animate-pulse" : ""
+                  }`}
                 >
                   {isActive && (
                     <motion.div
@@ -52,13 +62,20 @@ export function Nav() {
                       transition={{ type: "spring", duration: 0.5 }}
                     />
                   )}
-                  <span className="text-base relative z-10">{item.icon}</span>
+                  <span className="text-base relative z-10">
+                    {item.icon}
+                    {showDraftPulse && !isActive && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--emerald)] pulse-live" />
+                    )}
+                  </span>
                   <span
                     className={`relative z-10 ${
-                      isActive ? "text-[var(--gold)] font-semibold" : "text-[var(--muted)]"
+                      isActive ? "text-[var(--gold)] font-semibold"
+                      : isDraftItem && isDraftActive ? "text-[var(--emerald)] font-semibold"
+                      : "text-[var(--muted)]"
                     }`}
                   >
-                    {item.label}
+                    {isDraftItem && isDraftActive ? "LIVE" : item.label}
                   </span>
                 </Link>
               );

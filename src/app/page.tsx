@@ -69,23 +69,71 @@ function HeroCTA({ user, profile }: { user: unknown; profile: { name: string } |
   const router = useRouter();
 
   if (user) {
+    const { league } = useLeague();
+    const draftStatus = league?.draft_status || "pre_draft";
+    const isDraftActive = ["allegiance", "country_draft", "player_draft"].includes(draftStatus);
+    const draftComplete = draftStatus === "complete";
+
+    // Route to draft if it's the active phase
+    const primaryHref = !leagueId ? "/admin" : isDraftActive ? "/draft" : draftComplete ? "/portfolio" : "/draft";
+    const primaryLabel = !leagueId ? "Set Up Your League →"
+      : isDraftActive ? "Join the Draft — LIVE! 🔴"
+      : draftComplete ? "Go to Dashboard →"
+      : "Go to Draft Room →";
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="space-y-3 pt-4"
+        className="space-y-4 pt-4"
       >
+        {/* Draft status card when draft is active */}
+        {leagueId && isDraftActive && (
+          <motion.div
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            className="rounded-2xl bg-gradient-to-r from-[var(--emerald)]/10 via-[var(--surface)] to-[var(--emerald)]/10 border border-[var(--emerald)]/30 p-5 text-center space-y-2"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--emerald)] opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--emerald)]" />
+              </span>
+              <span className="text-[var(--emerald)] font-black uppercase tracking-wider text-sm">Draft is Live</span>
+            </div>
+            <p className="text-xs text-[var(--muted)]">
+              {draftStatus === "allegiance" && "Pick your heart team — blind picks happening now!"}
+              {draftStatus === "country_draft" && "Snake draft in progress — countries are being picked!"}
+              {draftStatus === "player_draft" && "Player draft in progress — build your squad!"}
+            </p>
+          </motion.div>
+        )}
+
+        {/* Draft pending card */}
+        {leagueId && !isDraftActive && !draftComplete && (
+          <div className="rounded-2xl bg-[var(--surface)] p-4 text-center">
+            <p className="text-sm text-[var(--muted)]">
+              🌙 {league?.name} — draft night is coming. Get ready!
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
-            href={leagueId ? "/portfolio" : "/admin"}
-            className="px-8 py-4 bg-[var(--gold)] text-[var(--background)] font-black rounded-2xl hover:bg-[var(--gold-dim)] transition-colors text-lg shadow-xl shadow-[var(--gold)]/30"
+            href={primaryHref}
+            className={`px-8 py-4 font-black rounded-2xl transition-colors text-lg shadow-xl text-center ${
+              isDraftActive
+                ? "bg-[var(--emerald)] text-white shadow-[var(--emerald)]/30 hover:opacity-90"
+                : "bg-[var(--gold)] text-[var(--background)] shadow-[var(--gold)]/30 hover:bg-[var(--gold-dim)]"
+            }`}
           >
-            {leagueId ? "Go to Dashboard →" : "Set Up Your League →"}
+            {primaryLabel}
           </Link>
         </div>
         <div className="text-sm text-[var(--muted)] text-center">
           Playing as <strong className="text-[var(--foreground)]">{profile?.name}</strong>
+          {league && <span> · {league.name}</span>}
         </div>
       </motion.div>
     );
